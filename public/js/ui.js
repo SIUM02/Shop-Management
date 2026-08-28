@@ -43,7 +43,12 @@ export function money(n) {
   if (n === undefined || n === null) return '—';
   const v = Number(n || 0);
   const sign = v < 0 ? '-' : '';
-  const amount = group(Math.abs(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Whole amounts print without the '.00' noise; anything fractional keeps
+  // its two decimals so historical totals still read exactly.
+  const rounded = Math.round(Math.abs(v) * 100) / 100;
+  const amount = group(rounded, Number.isInteger(rounded)
+    ? { maximumFractionDigits: 0 }
+    : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${sign}${state.settings.currency_symbol}${amount}`;
 }
 
