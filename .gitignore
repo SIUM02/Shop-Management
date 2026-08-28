@@ -9,3 +9,5 @@ data/*.db-shm
 
 # Vercel CLI
 .vercel
+.env*
+!.env.example
