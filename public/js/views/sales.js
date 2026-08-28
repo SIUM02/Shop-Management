@@ -115,6 +115,9 @@ async function load(root, ctx) {
 
 async function openSale(id, root, ctx) {
   const sale = await api.sale(id);
+  // The server omits profit for anyone who may not see margin, so its presence
+  // is the permission check — deriving it here would leak it.
+  const showsProfit = sale.profit !== undefined;
 
   modal({
     title: `${sale.invoice_no}${sale.status === 'voided' ? ' (voided)' : ''}`,
@@ -130,7 +133,12 @@ async function openSale(id, root, ctx) {
           <tr><td class="muted">Customer</td><td>${esc(sale.customer_name || 'Walk-in')}</td>
               <td class="muted">Phone</td><td>${esc(sale.customer_phone || '—')}</td></tr>
           <tr><td class="muted">Payment</td><td style="text-transform:capitalize">${esc(sale.payment_method)}</td>
-              <td></td><td></td></tr>
+              ${showsProfit
+                ? `<td class="muted">Profit</td>
+                   <td class="${sale.profit >= 0 ? 'text-ok' : 'text-danger'}">
+                     ${money(sale.profit)} <span class="muted small">· ${int(sale.margin_percent)}% margin</span>
+                   </td>`
+                : '<td></td><td></td>'}</tr>
         </tbody>
       </table>
 
