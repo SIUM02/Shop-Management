@@ -5,7 +5,9 @@ export async function render(root, ctx) {
   const d = await api.dashboard();
   const t = d.totals;
 
-  ctx.setActions(`
+  // setActions renders into the toolbar and hands it back; the buttons live
+  // there, not under `root`, so the handlers below must query what it returns.
+  const actions = ctx.setActions(`
     <button class="btn btn-primary" id="new-sale">＋ New Sale</button>
     <button class="btn" id="go-products">Manage Products</button>
   `);
@@ -80,8 +82,8 @@ export async function render(root, ctx) {
     </div>
   `;
 
-  root.querySelector('#new-sale')?.addEventListener('click', () => ctx.navigate('pos'));
-  root.querySelector('#go-products')?.addEventListener('click', () => ctx.navigate('products'));
+  actions.querySelector('#new-sale')?.addEventListener('click', () => ctx.navigate('pos'));
+  actions.querySelector('#go-products')?.addEventListener('click', () => ctx.navigate('products'));
 }
 
 function topSellers(rows) {

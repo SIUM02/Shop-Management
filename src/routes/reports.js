@@ -115,8 +115,8 @@ router.get(
   '/reorder',
   wrap(async (req, res) => {
     const rows = await q.all(`SELECT p.id, p.sku, p.name, p.quantity, p.reorder_level, p.unit, p.cost_price,
-                MAX(p.reorder_level * 2 - p.quantity, 1) AS suggested_qty,
-                (MAX(p.reorder_level * 2 - p.quantity, 1) * p.cost_price) AS estimated_cost,
+                GREATEST(p.reorder_level * 2 - p.quantity, 1) AS suggested_qty,
+                (GREATEST(p.reorder_level * 2 - p.quantity, 1) * p.cost_price) AS estimated_cost,
                 COALESCE(s.name, '—') AS supplier_name,
                 COALESCE(s.phone, '') AS supplier_phone,
                 COALESCE(s.email, '') AS supplier_email
