@@ -1,11 +1,19 @@
 import { api } from '../api.js';
-import { barChart, daysAgoISO, empty, esc, int, loading, money, todayISO } from '../ui.js';
+import { barChart, daysAgoISO, empty, esc, int, loading, money, seesCost, seesProfit, todayISO } from '../ui.js';
 
-const TABS = [
-  { id: 'valuation', label: 'Stock valuation' },
-  { id: 'reorder',   label: 'Reorder list' },
-  { id: 'sales',     label: 'Sales & profit' },
+/*
+ * Which reports a role is offered. The server refuses the data regardless
+ * (see src/permissions.js); this just avoids showing tabs that would open on
+ * an empty or forbidden report.
+ */
+const ALL_TABS = [
+  { id: 'valuation', label: 'Stock valuation', needs: 'cost' },
+  { id: 'reorder',   label: 'Reorder list',    needs: 'cost' },
+  { id: 'sales',     label: 'Sales & profit',  needs: 'profit' },
 ];
+
+const tabs = () => ALL_TABS.filter((t) =>
+  t.needs === 'profit' ? seesProfit() : t.needs === 'cost' ? seesCost() : true);
 
 let active = 'valuation';
 const range = { from: daysAgoISO(29), to: todayISO() };
@@ -13,13 +21,17 @@ const range = { from: daysAgoISO(29), to: todayISO() };
 export async function render(root, ctx) {
   ctx.setActions(`
     <a class="btn" href="/api/reports/export/products">Products CSV</a>
-    <a class="btn" href="/api/reports/export/sales">Sales CSV</a>
+    ${seesProfit() ? '<a class="btn" href="/api/reports/export/sales">Sales CSV</a>' : ''}
     <a class="btn" href="/api/reports/export/movements">Movements CSV</a>
   `);
 
+  const available = tabs();
+  // A remembered tab may not be open to this role; fall back to the first one.
+  if (!available.some((t) => t.id === active)) active = available[0]?.id;
+
   root.innerHTML = `
     <div class="toolbar">
-      ${TABS.map((t) =>
+      ${available.map((t) =>
         `<button class="btn ${active === t.id ? 'btn-primary' : ''}" data-tab="${t.id}">${t.label}</button>`).join('')}
     </div>
     <div id="report-body">${loading()}</div>`;
@@ -28,6 +40,10 @@ export async function render(root, ctx) {
     b.addEventListener('click', () => { active = b.dataset.tab; render(root, ctx); }));
 
   const body = root.querySelector('#report-body');
+  if (!available.length) {
+    body.innerHTML = empty('No reports are available for your role', '🔒');
+    return;
+  }
   if (active === 'valuation') await valuation(body);
   else if (active === 'reorder') await reorder(body);
   else await salesReport(body, root, ctx);

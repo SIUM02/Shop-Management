@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { canEdit, confirmDialog, empty, esc, formData, int, modal, money, toast } from '../ui.js';
+import { canEdit, confirmDialog, empty, esc, formData, int, modal, money, seesCost, toast } from '../ui.js';
 
 export async function render(root, ctx) {
   const rows = await api.suppliers();
@@ -47,7 +47,7 @@ export async function render(root, ctx) {
 
 async function openDetail(id, ctx) {
   const s = await api.supplier(id);
-  const value = s.products.reduce((a, p) => a + p.quantity * p.cost_price, 0);
+  const value = s.products.reduce((a, p) => a + p.quantity * (p.cost_price ?? 0), 0);
 
   modal({
     title: s.name,
@@ -72,8 +72,8 @@ async function openDetail(id, ctx) {
             <tr>
               <td><div class="cell-main">${esc(p.name)}</div><div class="cell-sub mono">${esc(p.sku)}</div></td>
               <td class="num">${int(p.quantity)}</td>
-              <td class="num">${money(p.cost_price)}</td>
-              <td class="num">${money(p.quantity * p.cost_price)}</td>
+              ${seesCost() ? `<td class="num">${money(p.cost_price)}</td>` : ''}
+              ${seesCost() ? `<td class="num">${money(p.quantity * (p.cost_price ?? 0))}</td>` : ''}
             </tr>`).join('')}</tbody>
         </table></div>` : empty('No products linked to this supplier yet', '📦')}`,
     footer: `

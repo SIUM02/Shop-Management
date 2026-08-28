@@ -6,6 +6,25 @@ import { applyMovement } from './stock.js';
 
 const router = express.Router();
 
+/**
+ * Adds what the sale earned: profit in currency, and margin as a percentage of
+ * the net (pre-tax) takings. Tax is excluded from both because it is collected
+ * on the state's behalf, not earned.
+ *
+ * These fields are stripped again on the way out for anyone who may not see
+ * margin — see src/permissions.js.
+ */
+function withProfit(sale) {
+  if (!sale) return sale;
+  const net = Number(sale.total) - Number(sale.tax);
+  const profit = money(net - Number(sale.cost_total));
+  return {
+    ...sale,
+    profit,
+    margin_percent: net > 0 ? Math.round((profit / net) * 1000) / 10 : 0,
+  };
+}
+
 /** Invoice numbers look like INV-20260828-0007 and reset their counter daily. */
 async function nextInvoiceNo(tx) {
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -60,7 +79,7 @@ router.get(
     if (!sale) throw notFound('Sale not found');
 
     sale.items = await q.all('SELECT * FROM sale_items WHERE sale_id = ? ORDER BY id', sale.id);
-    res.json(sale);
+    res.json(withProfit(sale));
   })
 );
 
@@ -154,7 +173,7 @@ router.post(
     });
 
     sale.items = await q.all('SELECT * FROM sale_items WHERE sale_id = ? ORDER BY id', sale.id);
-    res.status(201).json(sale);
+    res.status(201).json(withProfit(sale));
   })
 );
 

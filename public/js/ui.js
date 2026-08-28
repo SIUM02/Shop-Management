@@ -38,6 +38,9 @@ function group(value, opts) {
 }
 
 export function money(n) {
+  // A field the server withheld arrives as undefined; show a dash rather than
+  // NaN if some corner of the interface forgets to check.
+  if (n === undefined || n === null) return '—';
   const v = Number(n || 0);
   const sign = v < 0 ? '-' : '';
   const amount = group(Math.abs(v), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -45,6 +48,53 @@ export function money(n) {
 }
 
 export const int = (n) => group(Number(n || 0), {});
+
+/**
+ * Count each .kpi-value up from zero to the figure it already displays.
+ *
+ * Strictly decorative: the element's exact original text is restored on the
+ * final frame, so an interpolation or grouping quirk can never change the
+ * number a shopkeeper actually reads. Skipped entirely when the visitor has
+ * asked for reduced motion.
+ */
+export function animateCounters(root) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  for (const el of root.querySelectorAll('.kpi-value')) {
+    const original = el.textContent;
+    // A currency symbol or minus sign, then the digits, then any trailing unit.
+    const parts = original.match(/^(\D*?)(\d[\d.,\s]*)(.*)$/s);
+    if (!parts) continue;
+
+    const [, prefix, digits, suffix] = parts;
+    const decimals = (digits.split('.')[1] || '').replace(/\D/g, '').length;
+    const target = Number(digits.replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(target) || target === 0) continue;
+
+    el.classList.add('counting');
+    const DURATION = 750;
+    const started = performance.now();
+
+    const frame = (now) => {
+      const t = Math.min((now - started) / DURATION, 1);
+      if (t < 1) {
+        const eased = 1 - Math.pow(1 - t, 3); // decelerate into the figure
+        el.textContent =
+          prefix +
+          group(target * eased, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+          }) +
+          suffix;
+        requestAnimationFrame(frame);
+      } else {
+        el.textContent = original;
+        el.classList.remove('counting');
+      }
+    };
+    requestAnimationFrame(frame);
+  }
+}
 
 /** SQLite writes 'YYYY-MM-DD HH:MM:SS' in UTC; render it in local time. */
 export function when(value, { withTime = true } = {}) {
@@ -99,6 +149,14 @@ export function movementBadge(type) {
 
 export const can = (...roles) => state.user && roles.includes(state.user.role);
 export const canEdit = () => can('admin', 'manager');
+
+/*
+ * Who sees margin. These mirror src/permissions.js and decide only what gets
+ * drawn — the server is what actually withholds the numbers, so editing these
+ * cannot reveal anything the response did not already contain.
+ */
+export const seesProfit = () => can('admin');
+export const seesCost = () => can('admin', 'manager');
 
 /* -------------------------------------------------------------- toasts */
 export function toast(message, kind = 'ok') {

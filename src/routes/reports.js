@@ -1,5 +1,7 @@
 import express from 'express';
 import { q } from '../db.js';
+import { requireRole } from '../auth.js';
+import { redact } from '../permissions.js';
 import { wrap } from '../helpers.js';
 
 const router = express.Router();
@@ -86,6 +88,9 @@ router.get(
 /** Full valuation list — what the stock on hand is worth. */
 router.get(
   '/valuation',
+  // Nothing but costs and margin: with those stripped out there is no report
+  // left for a staff account, so say so plainly rather than serving a husk.
+  requireRole('admin', 'manager'),
   wrap(async (req, res) => {
     const rows = await q.all(`SELECT p.sku, p.name, p.unit, p.quantity, p.cost_price, p.sell_price,
                 COALESCE(c.name, 'Uncategorised') AS category,
@@ -222,7 +227,9 @@ router.get(
     const source = CSV_SOURCES[req.params.what];
     if (!source) return res.status(404).json({ error: 'Unknown export' });
 
-    const csv = toCsv(await q.all(source.query));
+    // A CSV goes out through res.send, so it never passes the JSON redaction
+    // middleware — run the rows through the same policy by hand.
+    const csv = toCsv(redact(await q.all(source.query), req.user));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${source.filename}"`);
     res.send('﻿' + csv); // BOM so Excel reads UTF-8 correctly

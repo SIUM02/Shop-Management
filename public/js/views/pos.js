@@ -277,6 +277,34 @@ async function checkout(root, ctx) {
   }
 }
 
+/**
+ * Profit on this sale, for the owner's eyes.
+ *
+ * The server removes `profit` and `margin_percent` from the response for
+ * anyone who may not see margin, so its absence — not a role check here — is
+ * what hides this. That keeps one rule in one place, on the server.
+ *
+ * Marked no-print so it never lands on the customer's copy.
+ */
+function profitPanel(sale) {
+  if (sale.profit === undefined || sale.margin_percent === undefined) return '';
+  const tone = sale.profit >= 0 ? 'text-ok' : 'text-danger';
+  return `
+    <div class="profit-panel no-print">
+      <div class="profit-head">Owner only · not shown on the customer receipt</div>
+      <div class="profit-figures">
+        <div>
+          <span class="profit-label">Profit</span>
+          <strong class="${tone}">${money(sale.profit)}</strong>
+        </div>
+        <div>
+          <span class="profit-label">Margin</span>
+          <strong class="${tone}">${int(sale.margin_percent)}%</strong>
+        </div>
+      </div>
+    </div>`;
+}
+
 export function showReceipt(sale) {
   modal({
     title: `Receipt · ${sale.invoice_no}`,
@@ -305,6 +333,7 @@ export function showReceipt(sale) {
           <div class="total-row grand"><span>Total</span><span>${money(sale.total)}</span></div>
           <div class="total-row"><span>Paid by</span><span>${esc(sale.payment_method)}</span></div>
         </div>
+        ${profitPanel(sale)}
         <p style="text-align:center;margin-top:18px">Thank you for your purchase!</p>
       </div>`,
     footer: `

@@ -2,57 +2,59 @@
 :root {
   color-scheme: light only;
 
-  /* Warm, paper-like neutrals rather than cool blue-greys: less clinical,
-     and they let a single restrained accent do the work. */
-  --bg:            #f7f6f3;
-  --bg-accent:     #f2f0eb;
+  --bg:            #f4f5fb;
+  --bg-accent:     #eceefa;
   --surface:       #ffffff;
-  --surface-2:     #faf9f6;
-  --surface-3:     #f2f0ec;
-  --border:        #e8e4dd;
-  --border-strong: #d8d2c8;
+  --surface-2:     #f7f8fd;
+  --surface-3:     #eef0fa;
+  --border:        #e5e7f4;
+  --border-strong: #ccd0e8;
 
-  --text:          #1b1a18;
-  --text-muted:    #6c675f;
-  --text-faint:    #9c958a;
+  --text:          #141733;
+  --text-muted:    #5d6486;
+  --text-faint:    #9098b8;
 
-  /* A deep, desaturated navy reads calmer than a bright indigo and keeps
-     the coloured status badges legible beside it. */
-  --brand:         #33436f;
-  --brand-dark:    #263254;
-  --brand-light:   #4a5c8d;
-  --brand-soft:    #eef0f5;
-  --brand-ring:    rgba(51, 67, 111, .15);
+  --brand:         #5b4bde;
+  --brand-dark:    #4736c4;
+  --brand-light:   #8b7cf0;
+  --brand-soft:    #eeebfe;
+  --brand-ring:    rgba(91, 75, 222, .22);
 
-  --ok:            #2f6a4a;
-  --ok-soft:       #e9f2eb;
-  --warn:          #8f6521;
-  --warn-soft:     #f8f0e2;
-  --danger:        #a1403c;
-  --danger-soft:   #f8ebea;
+  --violet:        #8b5cf6;
+  --cyan:          #06b6d4;
+  --pink:          #ec4899;
 
-  --sidebar:       #1e2130;
-  --sidebar-hover: rgba(255, 255, 255, .055);
-  --sidebar-text:  #9c9fae;
-  --sidebar-faint: #666a7d;
-  --sidebar-line:  rgba(255, 255, 255, .06);
+  --ok:            #0d9463;
+  --ok-soft:       #e3f7ee;
+  --warn:          #c07807;
+  --warn-soft:     #fdf3e0;
+  --danger:        #dc3a4b;
+  --danger-soft:   #fdebed;
 
-  --radius-sm: 7px;
-  --radius:    10px;
-  --radius-lg: 14px;
+  --sidebar-top:   #1a1b3d;
+  --sidebar-bot:   #0f102a;
+  --sidebar-hover: rgba(255, 255, 255, .07);
+  --sidebar-text:  #a2a6cc;
+  --sidebar-faint: #5d6394;
+  --sidebar-line:  rgba(255, 255, 255, .08);
 
-  /* Restrained: enough to lift a surface off the page, not enough to float. */
-  --shadow-xs: 0 1px 1px rgba(27, 26, 24, .04);
-  --shadow:    0 1px 2px rgba(27, 26, 24, .045), 0 1px 8px -3px rgba(27, 26, 24, .05);
-  --shadow-md: 0 1px 3px rgba(27, 26, 24, .05), 0 8px 20px -8px rgba(27, 26, 24, .10);
-  --shadow-lg: 0 4px 12px -4px rgba(27, 26, 24, .10), 0 24px 48px -16px rgba(27, 26, 24, .22);
-  --shadow-brand: var(--shadow-xs);
+  --radius-sm: 9px;
+  --radius:    14px;
+  --radius-lg: 18px;
+
+  --shadow-xs: 0 1px 2px rgba(20, 23, 51, .05);
+  --shadow:    0 1px 2px rgba(20, 23, 51, .05), 0 4px 14px -3px rgba(20, 23, 51, .08);
+  --shadow-md: 0 4px 8px -2px rgba(20, 23, 51, .07), 0 16px 32px -10px rgba(20, 23, 51, .16);
+  --shadow-lg: 0 12px 24px -6px rgba(20, 23, 51, .14), 0 32px 64px -16px rgba(20, 23, 51, .30);
+  --shadow-brand: 0 2px 6px -1px rgba(91, 75, 222, .35), 0 10px 24px -6px rgba(91, 75, 222, .42);
+  --glow-brand: 0 0 0 1px rgba(91, 75, 222, .18), 0 8px 28px -6px rgba(91, 75, 222, .40);
 
   --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text",
           "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
-  --ease: cubic-bezier(.32, .72, 0, 1);
+  --ease:      cubic-bezier(.32, .72, 0, 1);
+  --ease-back: cubic-bezier(.34, 1.56, .64, 1);
 }
 
 * { box-sizing: border-box; }
@@ -100,8 +102,10 @@ a:hover { color: var(--brand-dark); }
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(1100px 700px at 50% -20%, #2b3048 0%, transparent 68%),
-    #1b1e2b;
+    radial-gradient(880px 520px at 12% -8%, rgba(91, 75, 222, .55) 0%, transparent 62%),
+    radial-gradient(760px 520px at 90% 4%, rgba(6, 182, 212, .30) 0%, transparent 58%),
+    radial-gradient(720px 620px at 55% 112%, rgba(236, 72, 153, .28) 0%, transparent 62%),
+    linear-gradient(165deg, #191a3f 0%, #12132c 55%, #0b0c1c 100%);
 }
 
 /* A soft grid, barely visible, to keep the backdrop from reading as flat. */
@@ -139,9 +143,10 @@ a:hover { color: var(--brand-dark); }
   display: grid;
   place-items: center;
   color: #fff;
-  background: var(--brand);
+  background: linear-gradient(145deg, var(--brand-light), var(--brand));
+  box-shadow: var(--shadow-brand);
 }
-.login-logo svg { width: 26px; height: 26px; }
+.login-logo svg { width: 27px; height: 27px; }
 .login-card h1 { font-size: 23px; margin: 0 0 5px; }
 .login-sub { margin: 0 0 26px; color: var(--text-muted); font-size: 14px; }
 .login-card .field { text-align: left; }
@@ -161,7 +166,7 @@ a:hover { color: var(--brand-dark); }
 .sidebar {
   width: 246px;
   flex: 0 0 246px;
-  background: var(--sidebar);
+  background: linear-gradient(170deg, var(--sidebar-top) 0%, var(--sidebar-bot) 100%);
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -190,10 +195,10 @@ a:hover { color: var(--brand-dark); }
   display: grid;
   place-items: center;
   color: #fff;
-  background: rgba(255, 255, 255, .1);
-  border: 1px solid rgba(255, 255, 255, .14);
+  background: linear-gradient(145deg, var(--brand-light), var(--brand));
+  box-shadow: 0 4px 14px -3px rgba(139, 124, 240, .7);
 }
-.brand-mark svg { width: 16px; height: 16px; }
+.brand-mark svg { width: 17px; height: 17px; }
 .brand-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .nav { flex: 1; padding: 12px 12px 18px; overflow-y: auto; }
@@ -220,9 +225,10 @@ a:hover { color: var(--brand-dark); }
 .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
 .nav-item:hover svg { opacity: 1; }
 .nav-item.active {
-  background: rgba(255, 255, 255, .1);
+  background: linear-gradient(100deg, var(--brand) 0%, var(--brand-light) 100%);
   color: #fff;
-  font-weight: 560;
+  font-weight: 570;
+  box-shadow: 0 4px 16px -4px rgba(91, 75, 222, .85);
 }
 .nav-item.active svg { opacity: 1; }
 
@@ -254,8 +260,8 @@ a:hover { color: var(--brand-dark); }
   width: 35px; height: 35px;
   flex: 0 0 35px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .12);
-  border: 1px solid rgba(255, 255, 255, .16);
+  background: linear-gradient(145deg, var(--brand-light), var(--brand));
+  box-shadow: 0 4px 12px -3px rgba(139, 124, 240, .6);
   display: grid;
   place-items: center;
   font-weight: 680;
@@ -321,11 +327,21 @@ a:hover { color: var(--brand-dark); }
 .btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; transform: none; }
 
 .btn-primary {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: linear-gradient(135deg, var(--brand-light) 0%, var(--brand) 55%, var(--brand-dark) 100%);
+  background-size: 160% 160%;
+  background-position: 0% 50%;
+  border-color: transparent;
   color: #fff;
+  box-shadow: var(--shadow-brand);
+  transition: background-position .5s var(--ease), box-shadow .25s var(--ease),
+              transform .18s var(--ease-back);
 }
-.btn-primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+.btn-primary:hover {
+  background-position: 100% 50%;
+  box-shadow: var(--glow-brand);
+  transform: translateY(-1.5px);
+}
+.btn-primary:active { transform: translateY(0); }
 .btn-danger {
   background: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 80%, #000);
@@ -410,6 +426,7 @@ select { cursor: pointer; }
   gap: 12px;
   padding: 16px 22px;
   border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 .card-head h2 { font-size: 15.5px; flex: 1; }
 .card-head .sub { font-size: 12.5px; color: var(--text-muted); font-weight: 400; }
@@ -432,8 +449,8 @@ select { cursor: pointer; }
   content: "";
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 2px;
-  background: var(--brand);
+  width: 3px;
+  background: linear-gradient(180deg, var(--brand-light), var(--brand));
 }
 .kpi:hover { border-color: var(--border-strong); }
 .kpi-label {
@@ -447,20 +464,20 @@ select { cursor: pointer; }
   gap: 7px;
 }
 .kpi-value {
-  font-size: 30px;
-  font-weight: 500;
-  margin-top: 10px;
-  letter-spacing: -.032em;
+  font-size: 29px;
+  font-weight: 660;
+  margin-top: 9px;
+  letter-spacing: -.03em;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
 }
 .kpi-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
 .kpi.accent-ok     .kpi-value { color: var(--ok); }
-.kpi.accent-ok::after     { background: var(--ok); }
+.kpi.accent-ok::after     { background: linear-gradient(180deg, #34d399, var(--ok)); }
 .kpi.accent-warn   .kpi-value { color: var(--warn); }
-.kpi.accent-warn::after   { background: var(--warn); }
+.kpi.accent-warn::after   { background: linear-gradient(180deg, #fbbf47, var(--warn)); }
 .kpi.accent-danger .kpi-value { color: var(--danger); }
-.kpi.accent-danger::after { background: var(--danger); }
+.kpi.accent-danger::after { background: linear-gradient(180deg, #fb7185, var(--danger)); }
 
 /* ------------------------------------------------------------------ tables */
 .table-wrap { overflow-x: auto; }
@@ -571,7 +588,7 @@ tfoot td {
 .bar-track { height: 7px; background: var(--surface-3); border-radius: 100px; overflow: hidden; margin-top: 6px; }
 .bar-fill  {
   height: 100%;
-  background: var(--brand);
+  background: linear-gradient(90deg, var(--brand) 0%, var(--brand-light) 60%, var(--violet) 100%);
   border-radius: 100px;
 }
 .bar-name  { font-size: 13.5px; font-weight: 520; }
@@ -720,6 +737,8 @@ tfoot td {
   .modal-backdrop { position: absolute; inset: 0; background: #fff; padding: 0; display: block; backdrop-filter: none; }
   .modal { box-shadow: none; max-width: 100%; max-height: none; border: none; }
   .modal-head, .modal-foot { display: none; }
+  /* Margin is for the owner's screen, never the customer's copy. */
+  .no-print, .no-print * { display: none !important; visibility: hidden !important; }
 }
 
 /* ------------------------------------------------------------------ responsive */
@@ -752,4 +771,166 @@ tfoot td {
   .form-grid { grid-template-columns: 1fr; }
   .toolbar .search { max-width: none; }
   .kpi-value { font-size: 24px; }
+}
+
+/* ==================================================================
+   Interaction layer
+   Motion is used to explain state, not to decorate: things that can be
+   clicked respond, things that just arrived settle into place, and
+   anything still loading says so. All of it is disabled wholesale by the
+   prefers-reduced-motion rule near the top of this file.
+   ================================================================== */
+
+/* ---- cards and tiles: lift toward the pointer ---- */
+.card {
+  transition: transform .28s var(--ease), box-shadow .28s var(--ease),
+              border-color .28s var(--ease);
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.kpi { transition: transform .3s var(--ease-back), box-shadow .3s var(--ease); }
+.kpi:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+/* The accent bar widens as the tile lifts, so the colour reads as the
+   tile's own rather than a stripe stuck to its edge. */
+.kpi::after { transition: width .3s var(--ease-back); }
+.kpi:hover::after { width: 6px; }
+
+/* ---- staggered entrance, so a screen assembles instead of snapping in ---- */
+.content > * { animation: fade-up .42s var(--ease) both; }
+.grid > *          { animation: fade-up .42s var(--ease) both; }
+.grid > *:nth-child(1) { animation-delay: .02s; }
+.grid > *:nth-child(2) { animation-delay: .07s; }
+.grid > *:nth-child(3) { animation-delay: .12s; }
+.grid > *:nth-child(4) { animation-delay: .17s; }
+.grid > *:nth-child(5) { animation-delay: .22s; }
+.grid > *:nth-child(6) { animation-delay: .27s; }
+
+/* ---- table rows: an accent slides in from the left on hover ---- */
+tbody tr { position: relative; }
+tbody tr td:first-child { position: relative; }
+tbody tr td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--brand);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform .22s var(--ease);
+}
+tbody tr:hover td:first-child::before { transform: scaleY(1); }
+tbody tr:hover { background: var(--brand-soft); }
+tbody tr.clickable:active { background: var(--surface-3); }
+
+/* ---- sidebar rows: nudge toward the content on hover ---- */
+.nav-item { transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease); }
+.nav-item:hover { transform: translateX(3px); }
+.nav-item svg { transition: transform .22s var(--ease-back), opacity .18s var(--ease); }
+.nav-item:hover svg { transform: scale(1.12); }
+.nav-item.active:hover { transform: none; }
+
+/* ---- buttons: press feedback plus a sheen that sweeps across on hover ---- */
+.btn { position: relative; overflow: hidden; }
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .38) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform .6s var(--ease);
+  pointer-events: none;
+}
+.btn:hover::after { transform: translateX(120%); }
+.btn:not(.btn-primary):hover { transform: translateY(-1px); }
+.icon-btn { transition: background .16s var(--ease), color .16s var(--ease), transform .18s var(--ease-back); }
+.icon-btn:hover { transform: scale(1.08); }
+
+/* ---- badges ---- */
+.badge { transition: transform .18s var(--ease-back); }
+tbody tr:hover .badge { transform: scale(1.06); }
+
+/* ---- chart: bars grow from the baseline on first paint ---- */
+.chart .bar {
+  transform-origin: center bottom;
+  animation: bar-grow .6s var(--ease) both;
+}
+.chart .bar:nth-child(odd)  { animation-delay: .04s; }
+.chart .bar:nth-child(even) { animation-delay: .09s; }
+@keyframes bar-grow { from { transform: scaleY(0); } }
+.chart .bar { transition: fill .18s var(--ease), opacity .18s var(--ease); }
+.chart .bar:hover { fill: var(--violet); opacity: 1; }
+
+/* ---- top-seller bars fill left-to-right ---- */
+.bar-fill {
+  transform-origin: left center;
+  animation: bar-fill-in .8s var(--ease) both;
+  animation-delay: .15s;
+}
+@keyframes bar-fill-in { from { transform: scaleX(0); } }
+
+/* ---- loading: a shimmer beats the word "Loading" ---- */
+.loading {
+  position: relative;
+  color: transparent;
+  min-height: 120px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .85) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: shimmer 1.25s infinite var(--ease);
+}
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* ---- inputs: lift subtly when focused ---- */
+input:focus, select:focus, textarea:focus { transform: translateY(-1px); }
+input, select, textarea { transition: border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease); }
+
+/* ---- modal and toast get a little more life ---- */
+@keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+.modal { animation: pop .3s var(--ease-back); }
+.toast { animation: slide .3s var(--ease-back); }
+
+/* ---- counters animating up read as "live", so hint at it ---- */
+.kpi-value.counting { font-variant-numeric: tabular-nums; }
+
+/* ---- the alert banner pulses once to catch the eye, then rests ---- */
+.alert-warn { animation: alert-in .5s var(--ease) both; }
+@keyframes alert-in { from { opacity: 0; transform: translateY(-6px); } }
+
+
+/* ------------------------------------------------------- owner-only figures */
+.profit-panel {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: var(--font);
+}
+.profit-head {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  font-weight: 650;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+.profit-figures { display: flex; gap: 28px; }
+.profit-figures > div { display: flex; flex-direction: column; gap: 2px; }
+.profit-label { font-size: 12px; color: var(--text-muted); }
+.profit-figures strong {
+  font-size: 20px;
+  font-weight: 660;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
 }

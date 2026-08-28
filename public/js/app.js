@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { closeModal, esc, loading, state, toast } from './ui.js';
+import { animateCounters, closeModal, esc, loading, state, toast } from './ui.js';
 
 import * as dashboard  from './views/dashboard.js';
 import * as products   from './views/products.js';
@@ -85,6 +85,7 @@ async function renderRoute() {
   const token = ++renderToken;
   try {
     await route.view.render(el.view, ctx);
+    if (token === renderToken) animateCounters(el.view);
   } catch (err) {
     if (token !== renderToken) return;
     if (err.unauthorized) return showLogin(err.message);

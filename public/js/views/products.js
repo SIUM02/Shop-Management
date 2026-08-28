@@ -1,7 +1,7 @@
 import { api } from '../api.js';
 import {
   canEdit, confirmDialog, empty, esc, formData, int, loading, modal,
-  money, movementBadge, stockBadge, toast, when,
+  money, movementBadge, seesCost, stockBadge, toast, when,
 } from '../ui.js';
 
 const filters = { search: '', category_id: '', supplier_id: '', status: '', sort: 'name', dir: 'asc', offset: 0 };
@@ -101,9 +101,9 @@ async function load(root, ctx) {
         <th class="sortable" data-sort="name">Product${sortIcon('name')}</th>
         <th class="sortable" data-sort="category">Category${sortIcon('category')}</th>
         <th class="num sortable" data-sort="quantity">In stock${sortIcon('quantity')}</th>
-        <th class="num sortable" data-sort="cost_price">Cost${sortIcon('cost_price')}</th>
+        ${seesCost() ? `<th class="num sortable" data-sort="cost_price">Cost${sortIcon('cost_price')}</th>` : ''}
         <th class="num sortable" data-sort="sell_price">Price${sortIcon('sell_price')}</th>
-        <th class="num sortable" data-sort="stock_value">Value${sortIcon('stock_value')}</th>
+        ${seesCost() ? `<th class="num sortable" data-sort="stock_value">Value${sortIcon('stock_value')}</th>` : ''}
         <th>Status</th>
         <th></th>
       </tr></thead>
@@ -115,9 +115,9 @@ async function load(root, ctx) {
           </td>
           <td class="small">${esc(p.category_name || '—')}</td>
           <td class="num"><strong>${int(p.quantity)}</strong> <span class="small muted">${esc(p.unit)}</span></td>
-          <td class="num muted">${money(p.cost_price)}</td>
+          ${seesCost() ? `<td class="num muted">${money(p.cost_price)}</td>` : ''}
           <td class="num">${money(p.sell_price)}</td>
-          <td class="num">${money(p.stock_value)}</td>
+          ${seesCost() ? `<td class="num">${money(p.stock_value)}</td>` : ''}
           <td>${stockBadge(p)}</td>
           <td>
             <div class="row-actions">

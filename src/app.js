@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ready } from './db.js';
 import { requireAuth } from './auth.js';
+import { redactResponses } from './permissions.js';
 import { ensureSeed } from './seed.js';
 
 import authRoutes from './routes/auth.js';
@@ -91,6 +92,14 @@ export function boot() {
 app.use('/api', (req, res, next) => {
   boot().then(() => next(), next);
 });
+
+/*
+ * Strip margin from every JSON response the caller is not entitled to see.
+ * Mounted ahead of the routes but reads req.user at send time, by which point
+ * requireAuth has run — so a new endpoint is covered without having to
+ * remember to filter it.
+ */
+app.use('/api', redactResponses);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 

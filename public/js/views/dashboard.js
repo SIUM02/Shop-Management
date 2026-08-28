@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { barChart, empty, esc, int, money, movementBadge, relative } from '../ui.js';
+import { barChart, empty, esc, int, money, movementBadge, relative, seesCost, seesProfit } from '../ui.js';
 
 export async function render(root, ctx) {
   const d = await api.dashboard();
@@ -30,12 +30,12 @@ export async function render(root, ctx) {
       <div class="card kpi accent-ok">
         <div class="kpi-label">Today's sales</div>
         <div class="kpi-value">${money(d.today.revenue)}</div>
-        <div class="kpi-sub">${int(d.today.sale_count)} order${d.today.sale_count === 1 ? '' : 's'} · ${money(d.today.profit)} profit</div>
+        <div class="kpi-sub">${int(d.today.sale_count)} order${d.today.sale_count === 1 ? '' : 's'}${seesProfit() ? ` · ${money(d.today.profit)} profit` : ''}</div>
       </div>
       <div class="card kpi">
         <div class="kpi-label">This month</div>
         <div class="kpi-value">${money(d.month.revenue)}</div>
-        <div class="kpi-sub">${int(d.month.sale_count)} order${d.month.sale_count === 1 ? '' : 's'} · ${money(d.month.profit)} profit</div>
+        <div class="kpi-sub">${int(d.month.sale_count)} order${d.month.sale_count === 1 ? '' : 's'}${seesProfit() ? ` · ${money(d.month.profit)} profit` : ''}</div>
       </div>
       <div class="card kpi ${t.out_of_stock ? 'accent-danger' : t.low_stock ? 'accent-warn' : 'accent-ok'}">
         <div class="kpi-label">Needs restocking</div>
