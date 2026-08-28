@@ -87,7 +87,7 @@ async function renderRoute() {
     await route.view.render(el.view, ctx);
   } catch (err) {
     if (token !== renderToken) return;
-    if (err.unauthorized) return showLogin('Your session ended. Please sign in again.');
+    if (err.unauthorized) return showLogin(err.message);
     el.view.innerHTML = `<div class="card"><div class="card-body">
       <div class="alert alert-error">${esc(err.message)}</div>
       <button class="btn" id="reload-btn">Reload</button>

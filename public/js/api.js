@@ -18,7 +18,16 @@ async function request(method, url, body) {
   }
 
   if (res.status === 401) {
-    const err = new Error('Your session ended. Please sign in again.');
+    // A 401 is not always an expired session — a failed sign-in is one too.
+    // Keep the server's wording when it sent any, so "Incorrect username or
+    // password" is not reported to the user as "Your session ended".
+    let serverMessage = '';
+    try {
+      const text = await res.text();
+      if (text) serverMessage = JSON.parse(text).error || '';
+    } catch { /* not JSON; fall back to the generic wording */ }
+
+    const err = new Error(serverMessage || 'Your session ended. Please sign in again.');
     err.unauthorized = true;
     throw err;
   }
