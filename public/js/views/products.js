@@ -48,6 +48,26 @@ export async function render(root, ctx) {
     </div>
     <div class="card"><div id="list" class="card-body tight">${loading()}</div></div>`;
 
+  /*
+   * Row and button clicks are delegated from #list, which lives for as long as
+   * this view does. Binding here rather than inside load() matters: load()
+   * only replaces #list's children, so a listener added there survives every
+   * reload and stacks up — after three filter changes one click on "Stock"
+   * ran the handler seven times, opening and closing the dialog on each pass.
+   */
+  root.querySelector('#list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (btn) {
+      e.stopPropagation();
+      const id = Number(btn.dataset.id);
+      if (btn.dataset.act === 'edit') openForm(await api.product(id), ctx, root);
+      else openStockDialog(await api.product(id), () => load(root, ctx));
+      return;
+    }
+    const row = e.target.closest('tr[data-id]');
+    if (row) openDetail(Number(row.dataset.id), ctx, root);
+  });
+
   const search = root.querySelector('#f-search');
   let debounce;
   search.addEventListener('input', () => {
@@ -153,18 +173,6 @@ async function load(root, ctx) {
     load(root, ctx);
   });
 
-  box.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button[data-act]');
-    if (btn) {
-      e.stopPropagation();
-      const id = Number(btn.dataset.id);
-      if (btn.dataset.act === 'edit') openForm(await api.product(id), ctx, root);
-      else openStockDialog(await api.product(id), () => load(root, ctx));
-      return;
-    }
-    const row = e.target.closest('tr[data-id]');
-    if (row) openDetail(Number(row.dataset.id), ctx, root);
-  });
 }
 
 /* ------------------------------------------------------------ add / edit */

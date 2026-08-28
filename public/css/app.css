@@ -934,3 +934,15 @@ input, select, textarea { transition: border-color .16s var(--ease), box-shadow 
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
+
+/* Running margin on the sale being rung up — owner only, and visually set
+   apart from the customer-facing totals above it. */
+.pos-profit {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-strong);
+}
+.pos-profit .profit-head { margin-bottom: 8px; }
+.pos-profit .total-row { margin-bottom: 5px; }
+.pos-profit .profit-line { font-weight: 640; color: var(--text); font-size: 15px; }
+.pos-profit .profit-line span:last-child { font-variant-numeric: tabular-nums; }

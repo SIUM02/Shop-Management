@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { empty, esc, formData, int, modal, money, state, toast, when } from '../ui.js';
+import { empty, esc, formData, int, modal, money, seesProfit, state, toast, when } from '../ui.js';
 
 /** Cart lives at module scope so switching pages and back keeps it. */
 const cart = [];
@@ -104,6 +104,9 @@ function addToCart(product, root, ctx) {
       sku: product.sku,
       unit: product.unit,
       unit_price: product.sell_price,
+      // Present only for roles the server sends costs to; that absence is what
+      // keeps the running-profit row off everyone else's screen.
+      cost_price: product.cost_price,
       available: product.quantity,
       quantity: 1,
     });
@@ -118,7 +121,23 @@ function totals() {
   const taxPercent = Number(document.getElementById('pos-tax')?.value ?? state.settings.tax_percent) || 0;
   const capped = Math.min(discount, subtotal);
   const tax = (subtotal - capped) * (taxPercent / 100);
-  return { subtotal, discount: capped, taxPercent, tax, total: subtotal - capped + tax };
+
+  /*
+   * Running profit on the sale being rung up. Tax is excluded because it is
+   * collected for the state, not earned, so margin is measured against the
+   * net takings. Null unless every line carries a cost, which is the case
+   * only for a role the server sends costs to.
+   */
+  const priced = cart.length > 0 && cart.every((l) => Number.isFinite(l.cost_price));
+  const cost = priced ? cart.reduce((a, l) => a + l.cost_price * l.quantity, 0) : null;
+  const net = subtotal - capped;
+  const profit = priced ? net - cost : null;
+  const margin = priced && net > 0 ? (profit / net) * 100 : null;
+
+  return {
+    subtotal, discount: capped, taxPercent, tax, total: subtotal - capped + tax,
+    cost, profit, margin,
+  };
 }
 
 function paint(root, ctx) {
@@ -192,6 +211,17 @@ function paint(root, ctx) {
           <div class="total-row"><span>Discount</span><span>−${money(t.discount)}</span></div>
           <div class="total-row"><span>Tax (${t.taxPercent}%)</span><span>${money(t.tax)}</span></div>
           <div class="total-row grand"><span>Total</span><span>${money(t.total)}</span></div>
+          ${seesProfit() && t.profit !== null ? `
+            <div class="pos-profit" id="pos-profit">
+              <div class="profit-head">Owner only</div>
+              <div class="total-row"><span>Cost of goods</span><span id="t-cost">${money(t.cost)}</span></div>
+              <div class="total-row profit-line">
+                <span>Profit on this sale</span>
+                <span id="t-profit" class="${t.profit >= 0 ? 'text-ok' : 'text-danger'}">
+                  ${money(t.profit)}${t.margin === null ? '' : ` · ${t.margin.toFixed(1)}%`}
+                </span>
+              </div>
+            </div>` : ''}
 
           <button class="btn btn-primary btn-block" id="checkout" style="margin-top:14px;padding:12px">
             Complete sale · ${money(t.total)}
@@ -238,6 +268,15 @@ function paint(root, ctx) {
       rows[2].lastElementChild.textContent = money(u.tax);
       rows[3].lastElementChild.textContent = money(u.total);
       card.querySelector('#checkout').textContent = `Complete sale · ${money(u.total)}`;
+
+      // The owner-only figures move with the discount, so refresh them too.
+      const costEl = card.querySelector('#t-cost');
+      const profitEl = card.querySelector('#t-profit');
+      if (costEl && profitEl && u.profit !== null) {
+        costEl.textContent = money(u.cost);
+        profitEl.textContent = money(u.profit) + (u.margin === null ? '' : ` · ${u.margin.toFixed(1)}%`);
+        profitEl.className = u.profit >= 0 ? 'text-ok' : 'text-danger';
+      }
     });
   }
 
@@ -277,34 +316,6 @@ async function checkout(root, ctx) {
   }
 }
 
-/**
- * Profit on this sale, for the owner's eyes.
- *
- * The server removes `profit` and `margin_percent` from the response for
- * anyone who may not see margin, so its absence — not a role check here — is
- * what hides this. That keeps one rule in one place, on the server.
- *
- * Marked no-print so it never lands on the customer's copy.
- */
-function profitPanel(sale) {
-  if (sale.profit === undefined || sale.margin_percent === undefined) return '';
-  const tone = sale.profit >= 0 ? 'text-ok' : 'text-danger';
-  return `
-    <div class="profit-panel no-print">
-      <div class="profit-head">Owner only · not shown on the customer receipt</div>
-      <div class="profit-figures">
-        <div>
-          <span class="profit-label">Profit</span>
-          <strong class="${tone}">${money(sale.profit)}</strong>
-        </div>
-        <div>
-          <span class="profit-label">Margin</span>
-          <strong class="${tone}">${int(sale.margin_percent)}%</strong>
-        </div>
-      </div>
-    </div>`;
-}
-
 export function showReceipt(sale) {
   modal({
     title: `Receipt · ${sale.invoice_no}`,
@@ -333,7 +344,6 @@ export function showReceipt(sale) {
           <div class="total-row grand"><span>Total</span><span>${money(sale.total)}</span></div>
           <div class="total-row"><span>Paid by</span><span>${esc(sale.payment_method)}</span></div>
         </div>
-        ${profitPanel(sale)}
         <p style="text-align:center;margin-top:18px">Thank you for your purchase!</p>
       </div>`,
     footer: `
