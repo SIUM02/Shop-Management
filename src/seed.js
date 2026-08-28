@@ -67,6 +67,16 @@ function initialAdminPassword() {
  * { username, password, source } describing the account just created.
  */
 export async function ensureSeed() {
+  /*
+   * The common case is a database that already has users, and on a serverless
+   * host that case is hit on every cold start. Check it with one plain query
+   * before paying for a connection, a transaction and a lock; the authoritative
+   * re-check still happens inside the transaction below, so the race this
+   * guards against is still handled.
+   */
+  const existing = await q.get('SELECT COUNT(*) AS n FROM users');
+  if (existing.n > 0) return false;
+
   const admin = initialAdminPassword();
 
   return transaction(async (tx) => {

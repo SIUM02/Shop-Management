@@ -337,15 +337,18 @@ const DEFAULT_SETTINGS = {
   low_stock_only_active: '1',
 };
 
-/** Fills in any setting the database is missing, leaving existing ones alone. */
+/**
+ * Fills in any setting the database is missing, leaving existing ones alone.
+ * One multi-row INSERT rather than one per setting — five round trips to a
+ * database in another region is a real cost on a cold start.
+ */
 export async function applyDefaultSettings() {
-  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
-    await q.run(
-      'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING',
-      key,
-      value
-    );
-  }
+  const entries = Object.entries(DEFAULT_SETTINGS);
+  const values = entries.map(() => '(?, ?)').join(', ');
+  await q.run(
+    `INSERT INTO settings (key, value) VALUES ${values} ON CONFLICT (key) DO NOTHING`,
+    ...entries.flat()
+  );
 }
 
 /**
@@ -357,6 +360,20 @@ let readyPromise = null;
 export function ready() {
   if (!readyPromise) {
     readyPromise = (async () => {
+      /*
+       * Every cold start used to replay the whole DDL — eight round trips
+       * before the request could be served, which on a serverless host is paid
+       * over and over. The objects below are the last ones the setup creates,
+       * so if they are both present the rest of it ran too: one cheap query
+       * instead of eight, and the DDL only executes on a genuinely new database.
+       */
+      const installed = await q.get(`
+        SELECT to_regclass('public.sale_items') IS NOT NULL
+               AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_products_updated')
+               AS done
+      `);
+      if (installed?.done) return;
+
       // The time helpers define shop_utc_now(), which the schema below uses as
       // a column default, so they have to be created first.
       await q.exec(TIME_HELPERS.replaceAll('%L', `'${TZ}'`));
