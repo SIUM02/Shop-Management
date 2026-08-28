@@ -9,7 +9,8 @@
     "dev": "node --watch server.js",
     "seed": "node src/seed.js",
     "reset": "node src/seed.js --reset",
-    "convert-currency": "node src/convert-currency.js"
+    "convert-currency": "node src/convert-currency.js",
+    "add-products": "node src/add-demo-products.js"
   },
   "engines": {
     "node": ">=20.0.0"
