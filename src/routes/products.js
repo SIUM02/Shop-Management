@@ -1,5 +1,5 @@
 import express from 'express';
-import { db, transaction } from '../db.js';
+import { q, transaction } from '../db.js';
 import { requireRole } from '../auth.js';
 import {
   HttpError, badRequest, int, money, notFound, num, optionalId, str, wrap,
@@ -23,19 +23,19 @@ const SELECT_PRODUCT = `
 `;
 
 const SORTABLE = {
-  name: 'p.name COLLATE NOCASE',
-  sku: 'p.sku COLLATE NOCASE',
+  name: 'lower(p.name)',
+  sku: 'lower(p.sku)',
   quantity: 'p.quantity',
   sell_price: 'p.sell_price',
   cost_price: 'p.cost_price',
   stock_value: 'stock_value',
   created_at: 'p.created_at',
-  category: 'c.name COLLATE NOCASE',
+  category: 'lower(c.name)',
 };
 
 router.get(
   '/',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const { search, category_id, supplier_id, status, sort, dir, limit, offset } = req.query;
 
     const where = [];
@@ -45,7 +45,7 @@ router.get(
 
     if (search && String(search).trim()) {
       const like = `%${String(search).trim()}%`;
-      where.push('(p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ? OR p.description LIKE ?)');
+      where.push('(p.name ILIKE ? OR p.sku ILIKE ? OR p.barcode ILIKE ? OR p.description ILIKE ?)');
       params.push(like, like, like, like);
     }
     if (category_id) {
@@ -63,15 +63,11 @@ router.get(
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const orderSql = `ORDER BY ${SORTABLE[sort] || SORTABLE.name} ${dir === 'desc' ? 'DESC' : 'ASC'}`;
 
-    const total = db
-      .prepare(`SELECT COUNT(*) AS n FROM products p LEFT JOIN categories c ON c.id = p.category_id ${whereSql}`)
-      .get(...params).n;
+    const total = (await q.get(`SELECT COUNT(*) AS n FROM products p LEFT JOIN categories c ON c.id = p.category_id ${whereSql}`, ...params)).n;
 
     const take = Math.min(Number(limit) || 100, 500);
     const skip = Number(offset) || 0;
-    const items = db
-      .prepare(`${SELECT_PRODUCT} ${whereSql} ${orderSql} LIMIT ? OFFSET ?`)
-      .all(...params, take, skip);
+    const items = await q.all(`${SELECT_PRODUCT} ${whereSql} ${orderSql} LIMIT ? OFFSET ?`, ...params, take, skip);
 
     res.json({ items, total, limit: take, offset: skip });
   })
@@ -79,25 +75,21 @@ router.get(
 
 router.get(
   '/:id',
-  wrap((req, res) => {
-    const product = db.prepare(`${SELECT_PRODUCT} WHERE p.id = ?`).get(Number(req.params.id));
+  wrap(async (req, res) => {
+    const product = await q.get(`${SELECT_PRODUCT} WHERE p.id = ?`, Number(req.params.id));
     if (!product) throw notFound('Product not found');
 
-    product.movements = db
-      .prepare(
-        `SELECT m.*, u.username
+    product.movements = await q.all(`SELECT m.*, u.username
          FROM stock_movements m
          LEFT JOIN users u ON u.id = m.user_id
          WHERE m.product_id = ?
          ORDER BY m.created_at DESC, m.id DESC
-         LIMIT 50`
-      )
-      .all(product.id);
+         LIMIT 50`, product.id);
     res.json(product);
   })
 );
 
-function readBody(body) {
+async function readBody(body) {
   const data = {
     sku: str(body.sku, { field: 'SKU', required: true, max: 60 }),
     name: str(body.name, { field: 'Name', required: true, max: 200 }),
@@ -113,10 +105,10 @@ function readBody(body) {
     active: body.active === undefined ? 1 : body.active ? 1 : 0,
   };
 
-  if (data.category_id && !db.prepare('SELECT id FROM categories WHERE id = ?').get(data.category_id)) {
+  if (data.category_id && !(await q.get('SELECT id FROM categories WHERE id = ?', data.category_id))) {
     throw badRequest('Selected category no longer exists');
   }
-  if (data.supplier_id && !db.prepare('SELECT id FROM suppliers WHERE id = ?').get(data.supplier_id)) {
+  if (data.supplier_id && !(await q.get('SELECT id FROM suppliers WHERE id = ?', data.supplier_id))) {
     throw badRequest('Selected supplier no longer exists');
   }
   return data;
@@ -125,90 +117,76 @@ function readBody(body) {
 router.post(
   '/',
   requireRole('admin', 'manager'),
-  wrap((req, res) => {
-    const data = readBody(req.body);
+  wrap(async (req, res) => {
+    const data = await readBody(req.body);
     const openingQty = int(req.body.quantity, { field: 'Opening quantity', min: 0 });
 
-    if (db.prepare('SELECT id FROM products WHERE sku = ?').get(data.sku)) {
+    if (await q.get('SELECT id FROM products WHERE sku = ?', data.sku)) {
       throw new HttpError(409, `SKU "${data.sku}" is already in use`);
     }
 
-    const id = transaction(() => {
-      const info = db
-        .prepare(
-          `INSERT INTO products
+    const id = await transaction(async (tx) => {
+      const info = await tx.insert(`INSERT INTO products
              (sku, barcode, name, description, category_id, supplier_id,
               cost_price, sell_price, quantity, reorder_level, unit, location, active)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .run(
-          data.sku, data.barcode, data.name, data.description, data.category_id,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, data.sku, data.barcode, data.name, data.description, data.category_id,
           data.supplier_id, data.cost_price, data.sell_price, openingQty,
-          data.reorder_level, data.unit, data.location, data.active
-        );
+          data.reorder_level, data.unit, data.location, data.active);
       const newId = Number(info.lastInsertRowid);
 
       // Opening stock is a real movement so the audit trail starts from zero.
       if (openingQty > 0) {
-        db.prepare(
-          `INSERT INTO stock_movements
+        await tx.run(`INSERT INTO stock_movements
              (product_id, type, quantity, before_qty, after_qty, unit_cost, reference, note, user_id)
-           VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'Opening stock', ?)`
-        ).run(newId, openingQty, openingQty, data.cost_price, req.user.id);
+           VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'Opening stock', ?)`, newId, openingQty, openingQty, data.cost_price, req.user.id);
       }
       return newId;
     });
 
-    res.status(201).json(db.prepare(`${SELECT_PRODUCT} WHERE p.id = ?`).get(id));
+    res.status(201).json(await q.get(`${SELECT_PRODUCT} WHERE p.id = ?`, id));
   })
 );
 
 router.put(
   '/:id',
   requireRole('admin', 'manager'),
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const id = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM products WHERE id = ?').get(id)) {
+    if (!(await q.get('SELECT id FROM products WHERE id = ?', id))) {
       throw notFound('Product not found');
     }
-    const data = readBody(req.body);
+    const data = await readBody(req.body);
 
-    if (db.prepare('SELECT id FROM products WHERE sku = ? AND id != ?').get(data.sku, id)) {
+    if (await q.get('SELECT id FROM products WHERE sku = ? AND id != ?', data.sku, id)) {
       throw new HttpError(409, `SKU "${data.sku}" is already in use`);
     }
 
     // quantity is deliberately not editable here — it only moves through
     // /api/stock so that every change leaves an audit trail.
-    db.prepare(
-      `UPDATE products SET
+    await q.run(`UPDATE products SET
          sku = ?, barcode = ?, name = ?, description = ?, category_id = ?, supplier_id = ?,
          cost_price = ?, sell_price = ?, reorder_level = ?, unit = ?, location = ?, active = ?
-       WHERE id = ?`
-    ).run(
-      data.sku, data.barcode, data.name, data.description, data.category_id, data.supplier_id,
-      data.cost_price, data.sell_price, data.reorder_level, data.unit, data.location, data.active, id
-    );
+       WHERE id = ?`, data.sku, data.barcode, data.name, data.description, data.category_id, data.supplier_id,
+      data.cost_price, data.sell_price, data.reorder_level, data.unit, data.location, data.active, id);
 
-    res.json(db.prepare(`${SELECT_PRODUCT} WHERE p.id = ?`).get(id));
+    res.json(await q.get(`${SELECT_PRODUCT} WHERE p.id = ?`, id));
   })
 );
 
 router.delete(
   '/:id',
   requireRole('admin', 'manager'),
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const id = Number(req.params.id);
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+    const product = await q.get('SELECT * FROM products WHERE id = ?', id);
     if (!product) throw notFound('Product not found');
 
-    const soldCount = db
-      .prepare('SELECT COUNT(*) AS n FROM sale_items WHERE product_id = ?')
-      .get(id).n;
+    const soldCount = (await q.get('SELECT COUNT(*) AS n FROM sale_items WHERE product_id = ?', id)).n;
 
     // Deleting a product that appears on past invoices would rewrite history,
     // so archive it instead and let the caller know which happened.
     if (soldCount > 0) {
-      db.prepare('UPDATE products SET active = 0 WHERE id = ?').run(id);
+      await q.run('UPDATE products SET active = 0 WHERE id = ?', id);
       return res.json({
         ok: true,
         archived: true,
@@ -216,7 +194,7 @@ router.delete(
       });
     }
 
-    db.prepare('DELETE FROM products WHERE id = ?').run(id);
+    await q.run('DELETE FROM products WHERE id = ?', id);
     res.json({ ok: true, archived: false, message: `"${product.name}" was deleted.` });
   })
 );
@@ -224,11 +202,9 @@ router.delete(
 /** Barcode / SKU lookup used by the point-of-sale screen. */
 router.get(
   '/lookup/:code',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const code = String(req.params.code).trim();
-    const product = db
-      .prepare(`${SELECT_PRODUCT} WHERE p.active = 1 AND (p.barcode = ? OR p.sku = ?)`)
-      .get(code, code);
+    const product = await q.get(`${SELECT_PRODUCT} WHERE p.active = 1 AND (p.barcode = ? OR p.sku = ?)`, code, code);
     if (!product) throw notFound('No product matches that code');
     res.json(product);
   })

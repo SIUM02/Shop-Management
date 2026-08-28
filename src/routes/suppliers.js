@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db.js';
+import { q } from '../db.js';
 import { requireRole } from '../auth.js';
 import { HttpError, notFound, str, wrap } from '../helpers.js';
 
@@ -18,27 +18,21 @@ function readBody(body) {
 
 router.get(
   '/',
-  wrap((req, res) => {
-    const rows = db
-      .prepare(
-        `SELECT s.*,
+  wrap(async (req, res) => {
+    const rows = await q.all(`SELECT s.*,
                 (SELECT COUNT(*) FROM products p WHERE p.supplier_id = s.id) AS product_count
          FROM suppliers s
-         ORDER BY s.name COLLATE NOCASE`
-      )
-      .all();
+         ORDER BY lower(s.name)`);
     res.json(rows);
   })
 );
 
 router.get(
   '/:id',
-  wrap((req, res) => {
-    const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(Number(req.params.id));
+  wrap(async (req, res) => {
+    const supplier = await q.get('SELECT * FROM suppliers WHERE id = ?', Number(req.params.id));
     if (!supplier) throw notFound('Supplier not found');
-    supplier.products = db
-      .prepare('SELECT id, sku, name, quantity, cost_price FROM products WHERE supplier_id = ? ORDER BY name')
-      .all(supplier.id);
+    supplier.products = await q.all('SELECT id, sku, name, quantity, cost_price FROM products WHERE supplier_id = ? ORDER BY name', supplier.id);
     res.json(supplier);
   })
 );
@@ -46,19 +40,15 @@ router.get(
 router.post(
   '/',
   requireRole('admin', 'manager'),
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const data = readBody(req.body);
-    if (db.prepare('SELECT id FROM suppliers WHERE name = ?').get(data.name)) {
+    if (await q.get('SELECT id FROM suppliers WHERE name = ?', data.name)) {
       throw new HttpError(409, `Supplier "${data.name}" already exists`);
     }
-    const info = db
-      .prepare(
-        `INSERT INTO suppliers (name, contact_person, phone, email, address, notes)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(data.name, data.contact_person, data.phone, data.email, data.address, data.notes);
+    const info = await q.insert(`INSERT INTO suppliers (name, contact_person, phone, email, address, notes)
+         VALUES (?, ?, ?, ?, ?, ?)`, data.name, data.contact_person, data.phone, data.email, data.address, data.notes);
     res.status(201).json(
-      db.prepare('SELECT * FROM suppliers WHERE id = ?').get(info.lastInsertRowid)
+      await q.get('SELECT * FROM suppliers WHERE id = ?', info.lastInsertRowid)
     );
   })
 );
@@ -66,33 +56,31 @@ router.post(
 router.put(
   '/:id',
   requireRole('admin', 'manager'),
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const id = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM suppliers WHERE id = ?').get(id)) {
+    if (!await q.get('SELECT id FROM suppliers WHERE id = ?', id)) {
       throw notFound('Supplier not found');
     }
     const data = readBody(req.body);
-    if (db.prepare('SELECT id FROM suppliers WHERE name = ? AND id != ?').get(data.name, id)) {
+    if (await q.get('SELECT id FROM suppliers WHERE name = ? AND id != ?', data.name, id)) {
       throw new HttpError(409, `Supplier "${data.name}" already exists`);
     }
-    db.prepare(
-      `UPDATE suppliers
+    await q.run(`UPDATE suppliers
        SET name = ?, contact_person = ?, phone = ?, email = ?, address = ?, notes = ?
-       WHERE id = ?`
-    ).run(data.name, data.contact_person, data.phone, data.email, data.address, data.notes, id);
-    res.json(db.prepare('SELECT * FROM suppliers WHERE id = ?').get(id));
+       WHERE id = ?`, data.name, data.contact_person, data.phone, data.email, data.address, data.notes, id);
+    res.json(await q.get('SELECT * FROM suppliers WHERE id = ?', id));
   })
 );
 
 router.delete(
   '/:id',
   requireRole('admin', 'manager'),
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const id = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM suppliers WHERE id = ?').get(id)) {
+    if (!await q.get('SELECT id FROM suppliers WHERE id = ?', id)) {
       throw notFound('Supplier not found');
     }
-    db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
+    await q.run('DELETE FROM suppliers WHERE id = ?', id);
     res.json({ ok: true });
   })
 );

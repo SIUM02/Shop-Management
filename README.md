@@ -4,8 +4,8 @@ A complete inventory management web app for a retail shop: products, stock
 movements with a full audit trail, a point-of-sale screen, suppliers, reports
 and multi-user access.
 
-Runs on plain Node.js with a SQLite database file. There is no build step and
-no native compilation — `npm install` then `npm start`.
+Runs on plain Node.js with a Postgres database. There is no build step and no
+native compilation — `npm install` then `npm start`.
 
 ---
 
@@ -13,6 +13,8 @@ no native compilation — `npm install` then `npm start`.
 
 ```bash
 npm install
+createdb shop_dev                  # any Postgres you can reach
+cp .env.example .env               # then set DATABASE_URL and JWT_SECRET
 npm start
 ```
 
@@ -24,7 +26,7 @@ Open <http://localhost:3000> and sign in:
 
 **Change that password from Settings before anyone else can reach the app.**
 
-The first run creates `data/shop.db`, an admin account, and a small demo
+The first run creates the schema, an admin account, and a small demo
 catalogue (16 products, 5 categories, 3 suppliers) so the screens aren't empty.
 To start completely empty instead:
 
@@ -96,7 +98,8 @@ public/
   js/ui.js             Escaping, formatting, modals, toasts, charts
   js/app.js            Hash router and session handling
   js/views/            One module per screen
-data/shop.db           Your database (created on first run, gitignored)
+api/index.js           Vercel serverless entry point
+vercel.json            Routes every request to the app
 ```
 
 ---
@@ -122,13 +125,12 @@ invoice history never changes retroactively.
 
 ### Backup
 
-The whole database is one file. Stop the server and copy it:
-
 ```bash
-cp data/shop.db ~/backups/shop-$(date +%F).db
+pg_dump "$DATABASE_URL" > shop-$(date +%F).sql
 ```
 
-Or use the CSV exports in Settings → Data & backup.
+On Supabase, daily backups are taken for you (Project Settings → Database →
+Backups). Or use the CSV exports in Settings → Data & backup.
 
 ---
 
@@ -146,7 +148,10 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `PORT`           | `3000`           | Port to listen on                        |
 | `JWT_SECRET`     | —                | Signs session cookies. Change it.        |
 | `SESSION_HOURS`  | `12`             | How long a login lasts                   |
-| `DB_PATH`        | `./data/shop.db` | Database file location                   |
+| `DATABASE_URL`   | —                | Postgres connection string. Required.    |
+| `SHOP_TZ`        | `Asia/Dhaka`     | Decides when "today" rolls over          |
+| `ADMIN_PASSWORD` | —                | First admin's password; random if unset  |
+| `DATABASE_SSL`   | auto             | `on`/`off` to override TLS detection     |
 | `NODE_ENV`       | `development`    | Set to `production` for secure cookies   |
 
 ---
@@ -195,7 +200,33 @@ invoice totals and line items, and the unit costs recorded on stock movements �
 so historical sales stay comparable with new ones in your reports. Pass
 `--symbol` and `--locale` to override the Taka defaults.
 
-Back up `data/shop.db` before running it with `--apply`; there is no undo.
+Back up the database before running it with `--apply`; there is no undo.
+
+---
+
+## Deploying
+
+The app runs anywhere Node does. It is also set up for Vercel, where
+`api/index.js` serves the Express app as a serverless function and
+`vercel.json` routes every path to it.
+
+Because serverless instances start cold and share nothing, the database must
+be a hosted Postgres rather than a local file. Supabase's free tier works;
+use its **pooled** connection string (port 6543), not the direct one — many
+short-lived function instances would otherwise exhaust the connection limit.
+
+```bash
+vercel env add DATABASE_URL production   # the pooled Supabase URI
+vercel env add JWT_SECRET production     # 48 random bytes, hex
+vercel env add NODE_ENV production       # "production"
+vercel --prod
+```
+
+The schema is created and the admin seeded on the first request, guarded by a
+Postgres advisory lock so several cold instances cannot seed twice.
+
+Set `ADMIN_PASSWORD` before the first deploy to choose the admin password;
+without it a random one is generated and printed once to the function log.
 
 ---
 

@@ -1,16 +1,22 @@
 import express from 'express';
-import { db, transaction } from '../db.js';
+import { q, transaction } from '../db.js';
 import { badRequest, int, money, notFound, num, str, wrap } from '../helpers.js';
 
 const router = express.Router();
 
 /**
- * Apply one stock change and record it. Must run inside a transaction.
+ * Apply one stock change and record it. Must run inside a transaction, so it
+ * takes that transaction's query surface (`tx`) rather than reaching for the
+ * pool — a pooled query would run on another connection and escape the
+ * rollback, leaving stock changed after a failed sale.
+ *
  * `type` is 'in' | 'out' | 'adjust' | 'sale' | 'return'.
  * For 'adjust', `quantity` is the new absolute count; otherwise it is a delta.
  */
-export function applyMovement({ productId, type, quantity, unitCost, reference, note, userId, allowNegative = false }) {
-  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+export async function applyMovement(tx, { productId, type, quantity, unitCost, reference, note, userId, allowNegative = false }) {
+  // FOR UPDATE locks the row for the life of the transaction, so two tills
+  // selling the last unit at once cannot both read the same "before" quantity.
+  const product = await tx.get('SELECT * FROM products WHERE id = ? FOR UPDATE', productId);
   if (!product) throw notFound(`Product ${productId} not found`);
 
   const before = product.quantity;
@@ -34,33 +40,29 @@ export function applyMovement({ productId, type, quantity, unitCost, reference, 
     );
   }
 
-  db.prepare('UPDATE products SET quantity = ? WHERE id = ?').run(after, productId);
-  db.prepare(
-    `INSERT INTO stock_movements
+  await tx.run('UPDATE products SET quantity = ? WHERE id = ?', after, productId);
+  await tx.run(`INSERT INTO stock_movements
        (product_id, type, quantity, before_qty, after_qty, unit_cost, reference, note, user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    productId, type, delta, before, after,
-    unitCost ?? product.cost_price, reference || '', note || '', userId ?? null
-  );
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, productId, type, delta, before, after,
+    unitCost ?? product.cost_price, reference || '', note || '', userId ?? null);
 
   return { product, before, after, delta };
 }
 
 router.get(
   '/movements',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const { product_id, type, from, to, limit, offset, search } = req.query;
     const where = [];
     const params = [];
 
     if (product_id) { where.push('m.product_id = ?'); params.push(Number(product_id)); }
     if (type)       { where.push('m.type = ?');       params.push(String(type)); }
-    if (from)       { where.push('date(m.created_at) >= date(?)'); params.push(String(from)); }
-    if (to)         { where.push('date(m.created_at) <= date(?)'); params.push(String(to)); }
+    if (from)       { where.push('shop_date(m.created_at) >= ?::date'); params.push(String(from)); }
+    if (to)         { where.push('shop_date(m.created_at) <= ?::date'); params.push(String(to)); }
     if (search && String(search).trim()) {
       const like = `%${String(search).trim()}%`;
-      where.push('(p.name LIKE ? OR p.sku LIKE ? OR m.reference LIKE ? OR m.note LIKE ?)');
+      where.push('(p.name ILIKE ? OR p.sku ILIKE ? OR m.reference ILIKE ? OR m.note ILIKE ?)');
       params.push(like, like, like, like);
     }
 
@@ -70,18 +72,14 @@ router.get(
                   LEFT JOIN users u ON u.id = m.user_id
                   ${whereSql}`;
 
-    const total = db.prepare(`SELECT COUNT(*) AS n ${base}`).get(...params).n;
+    const total = (await q.get(`SELECT COUNT(*) AS n ${base}`, ...params)).n;
     const take = Math.min(Number(limit) || 100, 500);
     const skip = Number(offset) || 0;
 
-    const items = db
-      .prepare(
-        `SELECT m.*, p.name AS product_name, p.sku, p.unit, u.username
+    const items = await q.all(`SELECT m.*, p.name AS product_name, p.sku, p.unit, u.username
          ${base}
          ORDER BY m.created_at DESC, m.id DESC
-         LIMIT ? OFFSET ?`
-      )
-      .all(...params, take, skip);
+         LIMIT ? OFFSET ?`, ...params, take, skip);
 
     res.json({ items, total, limit: take, offset: skip });
   })
@@ -90,15 +88,15 @@ router.get(
 /** Receive stock (purchase / delivery in). */
 router.post(
   '/in',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const productId = int(req.body.product_id, { field: 'Product', required: true, min: 1 });
     const quantity = int(req.body.quantity, { field: 'Quantity', required: true, min: 1 });
     const unitCost = req.body.unit_cost === undefined || req.body.unit_cost === ''
       ? null
       : money(num(req.body.unit_cost, { field: 'Unit cost', min: 0 }));
 
-    const result = transaction(() => {
-      const out = applyMovement({
+    const result = await transaction(async (tx) => {
+      const out = await applyMovement(tx, {
         productId, type: 'in', quantity, unitCost,
         reference: str(req.body.reference, { field: 'Reference', max: 100 }),
         note: str(req.body.note, { field: 'Note', max: 500 }),
@@ -106,7 +104,7 @@ router.post(
       });
       // Receiving at a new price updates the product's cost basis.
       if (unitCost !== null) {
-        db.prepare('UPDATE products SET cost_price = ? WHERE id = ?').run(unitCost, productId);
+        await tx.run('UPDATE products SET cost_price = ? WHERE id = ?', unitCost, productId);
       }
       return out;
     });
@@ -118,12 +116,12 @@ router.post(
 /** Remove stock for a non-sale reason: damage, theft, internal use, returns to supplier. */
 router.post(
   '/out',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const productId = int(req.body.product_id, { field: 'Product', required: true, min: 1 });
     const quantity = int(req.body.quantity, { field: 'Quantity', required: true, min: 1 });
 
-    const result = transaction(() =>
-      applyMovement({
+    const result = await transaction((tx) =>
+      applyMovement(tx, {
         productId, type: 'out', quantity,
         reference: str(req.body.reference, { field: 'Reference', max: 100 }),
         note: str(req.body.note, { field: 'Reason', max: 500 }),
@@ -138,13 +136,13 @@ router.post(
 /** Set stock to a counted figure (stocktake). */
 router.post(
   '/adjust',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const productId = int(req.body.product_id, { field: 'Product', required: true, min: 1 });
     const counted = int(req.body.quantity, { field: 'Counted quantity', required: true, min: 0 });
     const note = str(req.body.note, { field: 'Reason', required: true, max: 500 });
 
-    const result = transaction(() =>
-      applyMovement({
+    const result = await transaction((tx) =>
+      applyMovement(tx, {
         productId, type: 'adjust', quantity: counted,
         reference: str(req.body.reference, { field: 'Reference', max: 100, fallback: 'STOCKTAKE' }),
         note, userId: req.user.id,

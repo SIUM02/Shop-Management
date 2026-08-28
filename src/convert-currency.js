@@ -12,7 +12,7 @@
  */
 import 'dotenv/config';
 import { pathToFileURL } from 'node:url';
-import { db, dbPath, getSettings, setSetting, transaction } from './db.js';
+import { q, dbTarget, getSettings, pool, ready, transaction } from './db.js';
 
 // table -> money columns to scale
 const MONEY_COLUMNS = {
@@ -34,22 +34,20 @@ function parseArgs(argv) {
   return args;
 }
 
-export function convertCurrency({ rate, symbol, locale, apply }) {
+export async function convertCurrency({ rate, symbol, locale, apply }) {
   if (!Number.isFinite(rate) || rate <= 0) {
     throw new Error('Pass a positive exchange rate, e.g. --rate 122.5');
   }
 
-  const before = getSettings();
+  const before = await getSettings();
   const counts = {};
-  const samples = db
-    .prepare('SELECT sku, name, cost_price, sell_price FROM products ORDER BY id LIMIT 5')
-    .all();
+  const samples = await q.all('SELECT sku, name, cost_price, sell_price FROM products ORDER BY id LIMIT 5');
 
   for (const table of Object.keys(MONEY_COLUMNS)) {
-    counts[table] = db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+    counts[table] = (await q.get(`SELECT COUNT(*) AS n FROM ${table}`)).n;
   }
 
-  console.log(`\nDatabase: ${dbPath}`);
+  console.log(`\nDatabase: ${dbTarget}`);
   console.log(`Rate:     1 old unit = ${rate} new units`);
   console.log(`Symbol:   ${before.currency_symbol} → ${symbol}`);
   console.log(`Format:   ${before.number_locale || 'en-IN'} → ${locale}\n`);
@@ -77,13 +75,20 @@ export function convertCurrency({ rate, symbol, locale, apply }) {
     return { applied: false };
   }
 
-  transaction(() => {
+  await transaction(async (tx) => {
     for (const [table, cols] of Object.entries(MONEY_COLUMNS)) {
-      const sets = cols.map((c) => `${c} = ROUND(${c} * ?, 2)`).join(', ');
-      db.prepare(`UPDATE ${table} SET ${sets}`).run(...cols.map(() => rate));
+      // Postgres only rounds to a scale on numeric, so the double is cast
+      // through numeric and back rather than using ROUND(double, int).
+      const sets = cols.map((c) => `${c} = ROUND((${c} * ?)::numeric, 2)::double precision`).join(', ');
+      await tx.run(`UPDATE ${table} SET ${sets}`, ...cols.map(() => rate));
     }
-    setSetting('currency_symbol', symbol);
-    setSetting('number_locale', locale);
+    for (const [key, value] of [['currency_symbol', symbol], ['number_locale', locale]]) {
+      await tx.run(
+        'INSERT INTO settings (key, value) VALUES (?, ?) ' +
+          'ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+        key, String(value)
+      );
+    }
   });
 
   console.log('\nConverted. Reload the app to see the new prices.\n');
@@ -93,11 +98,12 @@ export function convertCurrency({ rate, symbol, locale, apply }) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = parseArgs(process.argv.slice(2));
   try {
-    convertCurrency(args);
+    await ready();
+    await convertCurrency(args);
   } catch (err) {
     console.error(`\nError: ${err.message}\n`);
     process.exitCode = 1;
   } finally {
-    db.close();
+    await pool.end();
   }
 }

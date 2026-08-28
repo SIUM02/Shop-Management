@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { db } from './db.js';
+import { q } from './db.js';
 
 const SECRET = process.env.JWT_SECRET || 'insecure-dev-secret-change-me';
 const SESSION_HOURS = Number(process.env.SESSION_HOURS || 12);
@@ -41,13 +41,8 @@ export function cookieOptions() {
   };
 }
 
-const findUser = () =>
-  db.prepare(
-    'SELECT id, username, full_name, role, active FROM users WHERE id = ?'
-  );
-
 /** Populates req.user from the session cookie, or 401s. */
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const token = req.cookies?.[COOKIE_NAME];
   if (!token) return res.status(401).json({ error: 'Not signed in' });
 
@@ -61,7 +56,19 @@ export function requireAuth(req, res, next) {
 
   // Re-read the user each request so a deactivated account loses access
   // immediately rather than when their token happens to expire.
-  const user = findUser().get(payload.sub);
+  //
+  // Express 4 does not catch a rejected promise from middleware, so a database
+  // failure here is handed to next() by hand rather than left to hang.
+  let user;
+  try {
+    user = await q.get(
+      'SELECT id, username, full_name, role, active FROM users WHERE id = ?',
+      payload.sub
+    );
+  } catch (err) {
+    return next(err);
+  }
+
   if (!user || !user.active) {
     res.clearCookie(COOKIE_NAME);
     return res.status(401).json({ error: 'Account is no longer active' });

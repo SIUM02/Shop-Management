@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db.js';
+import { q } from '../db.js';
 import {
   COOKIE_NAME,
   cookieOptions,
@@ -15,7 +15,7 @@ const router = express.Router();
 
 router.post(
   '/login',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const username = str(req.body.username, { field: 'Username', required: true, max: 60 });
     const password = str(req.body.password, { field: 'Password', required: true, max: 200 });
 
@@ -30,9 +30,7 @@ router.post(
       );
     }
 
-    const user = db
-      .prepare('SELECT * FROM users WHERE username = ?')
-      .get(username);
+    const user = await q.get('SELECT * FROM users WHERE username = ?', username);
 
     // Same message either way so the form can't be used to enumerate usernames.
     if (!user || !verifyPassword(password, user.password_hash)) {
@@ -66,18 +64,17 @@ router.get('/me', requireAuth, (req, res) => {
 router.post(
   '/change-password',
   requireAuth,
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const current = str(req.body.current_password, { field: 'Current password', required: true, max: 200 });
     const next = str(req.body.new_password, { field: 'New password', required: true, max: 200 });
     if (next.length < 8) throw new HttpError(400, 'New password must be at least 8 characters');
 
-    const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    const row = await q.get('SELECT password_hash FROM users WHERE id = ?', req.user.id);
     if (!verifyPassword(current, row.password_hash)) {
       throw new HttpError(400, 'Current password is incorrect');
     }
 
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
-      .run(hashPassword(next), req.user.id);
+    await q.run('UPDATE users SET password_hash = ? WHERE id = ?', hashPassword(next), req.user.id);
     res.json({ ok: true });
   })
 );

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { applyDefaultSettings, db, transaction } from './db.js';
+import { applyDefaultSettings, pool, q, ready, transaction } from './db.js';
 import { hashPassword } from './auth.js';
 
 const DEMO_CATEGORIES = [
@@ -66,59 +66,69 @@ function initialAdminPassword() {
  * SKIP_DEMO_DATA=1. Returns false if nothing was needed, otherwise
  * { username, password, source } describing the account just created.
  */
-export function ensureSeed() {
-  const userCount = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
-  if (userCount > 0) return false;
-
+export async function ensureSeed() {
   const admin = initialAdminPassword();
 
-  transaction(() => {
+  return transaction(async (tx) => {
+    /*
+     * Several instances can boot at once on a serverless host and all find an
+     * empty users table. This advisory lock is held until the transaction ends,
+     * so the losers wait and then see the admin the winner just created,
+     * instead of racing into a duplicate-key error.
+     */
+    await tx.run('SELECT pg_advisory_xact_lock(?)', 918_273_645);
+
+    const userCount = (await tx.get('SELECT COUNT(*) AS n FROM users')).n;
+    if (userCount > 0) return false;
+
     const adminId = Number(
-      db.prepare(
-        "INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, 'admin')"
-      ).run('admin', hashPassword(admin.password), 'Shop Owner').lastInsertRowid
+      (await tx.insert(
+        "INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, 'admin')",
+        'admin', hashPassword(admin.password), 'Shop Owner'
+      )).lastInsertRowid
     );
 
-    if (process.env.SKIP_DEMO_DATA === '1') return;
+    if (process.env.SKIP_DEMO_DATA === '1') return { username: 'admin', ...admin };
 
-    const catIds = DEMO_CATEGORIES.map(([name, description]) =>
-      Number(
-        db.prepare('INSERT INTO categories (name, description) VALUES (?, ?)')
-          .run(name, description).lastInsertRowid
-      )
-    );
+    const catIds = [];
+    for (const [name, description] of DEMO_CATEGORIES) {
+      const row = await tx.insert(
+        'INSERT INTO categories (name, description) VALUES (?, ?)', name, description
+      );
+      catIds.push(Number(row.lastInsertRowid));
+    }
 
-    const supIds = DEMO_SUPPLIERS.map(([name, person, phone, email, address]) =>
-      Number(
-        db.prepare(
-          'INSERT INTO suppliers (name, contact_person, phone, email, address) VALUES (?, ?, ?, ?, ?)'
-        ).run(name, person, phone, email, address).lastInsertRowid
-      )
-    );
-
-    const insertProduct = db.prepare(
-      `INSERT INTO products
-         (sku, name, category_id, supplier_id, cost_price, sell_price,
-          quantity, reorder_level, unit, barcode)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    const insertMovement = db.prepare(
-      `INSERT INTO stock_movements
-         (product_id, type, quantity, before_qty, after_qty, unit_cost, reference, note, user_id)
-       VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'Opening stock', ?)`
-    );
+    const supIds = [];
+    for (const [name, person, phone, email, address] of DEMO_SUPPLIERS) {
+      const row = await tx.insert(
+        'INSERT INTO suppliers (name, contact_person, phone, email, address) VALUES (?, ?, ?, ?, ?)',
+        name, person, phone, email, address
+      );
+      supIds.push(Number(row.lastInsertRowid));
+    }
 
     for (const [sku, name, ci, si, cost, sell, qty, reorder, unit] of DEMO_PRODUCTS) {
       const barcode = '20' + String(Math.abs(hashCode(sku))).padStart(11, '0').slice(0, 11);
-      const id = Number(
-        insertProduct.run(sku, name, catIds[ci], supIds[si], cost, sell, qty, reorder, unit, barcode)
-          .lastInsertRowid
+      const { lastInsertRowid } = await tx.insert(
+        `INSERT INTO products
+           (sku, name, category_id, supplier_id, cost_price, sell_price,
+            quantity, reorder_level, unit, barcode)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sku, name, catIds[ci], supIds[si], cost, sell, qty, reorder, unit, barcode
       );
-      if (qty > 0) insertMovement.run(id, qty, qty, cost, adminId);
+      const id = Number(lastInsertRowid);
+      if (qty > 0) {
+        await tx.run(
+          `INSERT INTO stock_movements
+             (product_id, type, quantity, before_qty, after_qty, unit_cost, reference, note, user_id)
+           VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'Opening stock', ?)`,
+          id, qty, qty, cost, adminId
+        );
+      }
     }
-  });
 
-  return { username: 'admin', ...admin };
+    return { username: 'admin', ...admin };
+  });
 }
 
 function hashCode(s) {
@@ -130,23 +140,26 @@ function hashCode(s) {
 // `npm run seed` / `npm run reset` run this file directly. Compare through
 // pathToFileURL so paths containing spaces still match import.meta.url.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await ready();
+
   if (process.argv.includes('--reset')) {
     console.log('Clearing all data…');
-    db.exec('PRAGMA foreign_keys = OFF');
-    for (const t of ['sale_items', 'sales', 'stock_movements', 'products', 'categories', 'suppliers', 'users', 'settings']) {
-      db.exec(`DELETE FROM ${t}`);
-    }
-    db.exec("DELETE FROM sqlite_sequence WHERE name IN ('sale_items','sales','stock_movements','products','categories','suppliers','users')");
-    db.exec('PRAGMA foreign_keys = ON');
+    // TRUNCATE ... RESTART IDENTITY replaces both the DELETEs and the
+    // sqlite_sequence reset; CASCADE handles the foreign keys, so the
+    // PRAGMA dance around them is not needed.
+    await q.exec(`TRUNCATE TABLE
+      sale_items, sales, stock_movements, products, categories, suppliers, users, settings
+      RESTART IDENTITY CASCADE`);
     // settings were cleared too, so put the shipped defaults back.
-    applyDefaultSettings();
+    await applyDefaultSettings();
   }
-  const seeded = ensureSeed();
+
+  const seeded = await ensureSeed();
   if (seeded) {
     console.log(`Seeded. Sign in as "${seeded.username}" with password: ${seeded.password}`);
     if (seeded.source === 'generated') console.log('Save that password now — it is not stored anywhere in plain text.');
   } else {
     console.log('Database already has users — nothing to do.');
   }
-  db.close();
+  await pool.end();
 }

@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db.js';
+import { q } from '../db.js';
 import { wrap } from '../helpers.js';
 
 const router = express.Router();
@@ -7,51 +7,35 @@ const router = express.Router();
 /** Everything the dashboard needs, in one round trip. */
 router.get(
   '/dashboard',
-  wrap((req, res) => {
-    const totals = db
-      .prepare(
-        `SELECT COUNT(*)                                  AS product_count,
+  wrap(async (req, res) => {
+    const totals = await q.get(`SELECT COUNT(*)                                  AS product_count,
                 COALESCE(SUM(quantity), 0)                AS total_units,
                 COALESCE(SUM(quantity * cost_price), 0)   AS stock_value_cost,
                 COALESCE(SUM(quantity * sell_price), 0)   AS stock_value_retail,
                 COALESCE(SUM(CASE WHEN quantity <= 0 THEN 1 ELSE 0 END), 0) AS out_of_stock,
                 COALESCE(SUM(CASE WHEN quantity > 0 AND quantity <= reorder_level THEN 1 ELSE 0 END), 0) AS low_stock
-         FROM products WHERE active = 1`
-      )
-      .get();
+         FROM products WHERE active = 1`);
 
-    const today = db
-      .prepare(
-        `SELECT COUNT(*) AS sale_count,
+    const today = await q.get(`SELECT COUNT(*) AS sale_count,
                 COALESCE(SUM(total), 0)                  AS revenue,
                 COALESCE(SUM(total - tax - cost_total), 0) AS profit
          FROM sales
-         WHERE status = 'completed' AND date(created_at) = date('now','localtime')`
-      )
-      .get();
+         WHERE status = 'completed' AND shop_date(created_at) = shop_today()`);
 
-    const month = db
-      .prepare(
-        `SELECT COUNT(*) AS sale_count,
+    const month = await q.get(`SELECT COUNT(*) AS sale_count,
                 COALESCE(SUM(total), 0)                  AS revenue,
                 COALESCE(SUM(total - tax - cost_total), 0) AS profit
          FROM sales
          WHERE status = 'completed'
-           AND strftime('%Y-%m', created_at) = strftime('%Y-%m','now','localtime')`
-      )
-      .get();
+           AND to_char(shop_date(created_at), 'YYYY-MM') = to_char(shop_today(), 'YYYY-MM')`);
 
     // Zero-fill the last 14 days so the chart never shows gaps.
-    const salesRows = db
-      .prepare(
-        `SELECT date(created_at) AS day,
+    const salesRows = await q.all(`SELECT shop_date(created_at) AS day,
                 COALESCE(SUM(total), 0) AS revenue,
                 COUNT(*) AS orders
          FROM sales
-         WHERE status = 'completed' AND date(created_at) >= date('now','localtime','-13 days')
-         GROUP BY day`
-      )
-      .all();
+         WHERE status = 'completed' AND shop_date(created_at) >= shop_today() - 13
+         GROUP BY day`);
     const byDay = new Map(salesRows.map((r) => [r.day, r]));
     const trend = [];
     for (let i = 13; i >= 0; i--) {
@@ -62,54 +46,38 @@ router.get(
       trend.push({ day: key, revenue: hit ? hit.revenue : 0, orders: hit ? hit.orders : 0 });
     }
 
-    const lowStock = db
-      .prepare(
-        `SELECT p.id, p.sku, p.name, p.quantity, p.reorder_level, p.unit, s.name AS supplier_name
+    const lowStock = await q.all(`SELECT p.id, p.sku, p.name, p.quantity, p.reorder_level, p.unit, s.name AS supplier_name
          FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
          WHERE p.active = 1 AND p.quantity <= p.reorder_level
          ORDER BY (p.quantity - p.reorder_level), p.name
-         LIMIT 12`
-      )
-      .all();
+         LIMIT 12`);
 
-    const topProducts = db
-      .prepare(
-        `SELECT si.product_id, si.product_name, si.sku,
+    const topProducts = await q.all(`SELECT si.product_id, si.product_name, si.sku,
                 SUM(si.quantity)   AS units_sold,
                 SUM(si.line_total) AS revenue
          FROM sale_items si
          JOIN sales s ON s.id = si.sale_id
-         WHERE s.status = 'completed' AND date(s.created_at) >= date('now','localtime','-30 days')
+         WHERE s.status = 'completed' AND shop_date(s.created_at) >= shop_today() - 30
          GROUP BY si.product_id, si.product_name, si.sku
          ORDER BY revenue DESC
-         LIMIT 8`
-      )
-      .all();
+         LIMIT 8`);
 
-    const recentMovements = db
-      .prepare(
-        `SELECT m.id, m.type, m.quantity, m.after_qty, m.reference, m.created_at,
+    const recentMovements = await q.all(`SELECT m.id, m.type, m.quantity, m.after_qty, m.reference, m.created_at,
                 p.name AS product_name, p.sku, u.username
          FROM stock_movements m
          JOIN products p ON p.id = m.product_id
          LEFT JOIN users u ON u.id = m.user_id
          ORDER BY m.created_at DESC, m.id DESC
-         LIMIT 10`
-      )
-      .all();
+         LIMIT 10`);
 
-    const byCategory = db
-      .prepare(
-        `SELECT COALESCE(c.name, 'Uncategorised') AS category,
+    const byCategory = await q.all(`SELECT COALESCE(c.name, 'Uncategorised') AS category,
                 COUNT(p.id) AS products,
                 COALESCE(SUM(p.quantity), 0) AS units,
                 COALESCE(SUM(p.quantity * p.cost_price), 0) AS value
          FROM products p LEFT JOIN categories c ON c.id = p.category_id
          WHERE p.active = 1
          GROUP BY category
-         ORDER BY value DESC`
-      )
-      .all();
+         ORDER BY value DESC`);
 
     res.json({ totals, today, month, trend, lowStock, topProducts, recentMovements, byCategory });
   })
@@ -118,19 +86,15 @@ router.get(
 /** Full valuation list — what the stock on hand is worth. */
 router.get(
   '/valuation',
-  wrap((req, res) => {
-    const rows = db
-      .prepare(
-        `SELECT p.sku, p.name, p.unit, p.quantity, p.cost_price, p.sell_price,
+  wrap(async (req, res) => {
+    const rows = await q.all(`SELECT p.sku, p.name, p.unit, p.quantity, p.cost_price, p.sell_price,
                 COALESCE(c.name, 'Uncategorised') AS category,
                 (p.quantity * p.cost_price) AS cost_value,
                 (p.quantity * p.sell_price) AS retail_value,
                 (p.quantity * (p.sell_price - p.cost_price)) AS potential_profit
          FROM products p LEFT JOIN categories c ON c.id = p.category_id
          WHERE p.active = 1
-         ORDER BY cost_value DESC`
-      )
-      .all();
+         ORDER BY cost_value DESC`);
 
     const totals = rows.reduce(
       (acc, r) => ({
@@ -149,10 +113,8 @@ router.get(
 /** Items at or below their reorder level, with a suggested order quantity. */
 router.get(
   '/reorder',
-  wrap((req, res) => {
-    const rows = db
-      .prepare(
-        `SELECT p.id, p.sku, p.name, p.quantity, p.reorder_level, p.unit, p.cost_price,
+  wrap(async (req, res) => {
+    const rows = await q.all(`SELECT p.id, p.sku, p.name, p.quantity, p.reorder_level, p.unit, p.cost_price,
                 MAX(p.reorder_level * 2 - p.quantity, 1) AS suggested_qty,
                 (MAX(p.reorder_level * 2 - p.quantity, 1) * p.cost_price) AS estimated_cost,
                 COALESCE(s.name, '—') AS supplier_name,
@@ -160,9 +122,7 @@ router.get(
                 COALESCE(s.email, '') AS supplier_email
          FROM products p LEFT JOIN suppliers s ON s.id = p.supplier_id
          WHERE p.active = 1 AND p.quantity <= p.reorder_level
-         ORDER BY s.name, p.name`
-      )
-      .all();
+         ORDER BY s.name, p.name`);
     const estimated_total = rows.reduce((a, r) => a + r.estimated_cost, 0);
     res.json({ rows, estimated_total });
   })
@@ -171,52 +131,40 @@ router.get(
 /** Sales performance over a date range, grouped by day. */
 router.get(
   '/sales',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const from = String(req.query.from || '').trim() || null;
     const to = String(req.query.to || '').trim() || null;
 
     const where = ["s.status = 'completed'"];
     const params = [];
-    if (from) { where.push('date(s.created_at) >= date(?)'); params.push(from); }
-    if (to)   { where.push('date(s.created_at) <= date(?)'); params.push(to); }
+    if (from) { where.push('shop_date(s.created_at) >= ?::date'); params.push(from); }
+    if (to)   { where.push('shop_date(s.created_at) <= ?::date'); params.push(to); }
     const whereSql = `WHERE ${where.join(' AND ')}`;
 
-    const summary = db
-      .prepare(
-        `SELECT COUNT(*) AS orders,
+    const summary = await q.get(`SELECT COUNT(*) AS orders,
                 COALESCE(SUM(s.subtotal), 0)   AS subtotal,
                 COALESCE(SUM(s.discount), 0)   AS discount,
                 COALESCE(SUM(s.tax), 0)        AS tax,
                 COALESCE(SUM(s.total), 0)      AS revenue,
                 COALESCE(SUM(s.cost_total), 0) AS cost,
                 COALESCE(SUM(s.total - s.tax - s.cost_total), 0) AS profit
-         FROM sales s ${whereSql}`
-      )
-      .get(...params);
+         FROM sales s ${whereSql}`, ...params);
 
-    const daily = db
-      .prepare(
-        `SELECT date(s.created_at) AS day,
+    const daily = await q.all(`SELECT shop_date(s.created_at) AS day,
                 COUNT(*) AS orders,
                 COALESCE(SUM(s.total), 0) AS revenue,
                 COALESCE(SUM(s.total - s.tax - s.cost_total), 0) AS profit
          FROM sales s ${whereSql}
-         GROUP BY day ORDER BY day`
-      )
-      .all(...params);
+         GROUP BY day ORDER BY day`, ...params);
 
-    const byProduct = db
-      .prepare(
-        `SELECT si.product_name, si.sku,
+    const byProduct = await q.all(`SELECT si.product_name, si.sku,
                 SUM(si.quantity) AS units_sold,
                 SUM(si.line_total) AS revenue,
                 SUM(si.line_total - (si.unit_cost * si.quantity)) AS profit
          FROM sale_items si JOIN sales s ON s.id = si.sale_id
          ${whereSql}
          GROUP BY si.product_name, si.sku
-         ORDER BY revenue DESC LIMIT 50`
-      )
-      .all(...params);
+         ORDER BY revenue DESC LIMIT 50`, ...params);
 
     res.json({ summary, daily, byProduct, from, to });
   })
@@ -270,11 +218,11 @@ function toCsv(rows) {
 
 router.get(
   '/export/:what',
-  wrap((req, res) => {
+  wrap(async (req, res) => {
     const source = CSV_SOURCES[req.params.what];
     if (!source) return res.status(404).json({ error: 'Unknown export' });
 
-    const csv = toCsv(db.prepare(source.query).all());
+    const csv = toCsv(await q.all(source.query));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${source.filename}"`);
     res.send('﻿' + csv); // BOM so Excel reads UTF-8 correctly
