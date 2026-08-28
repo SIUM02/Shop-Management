@@ -3,15 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0c1424" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f1f4f9" media="(prefers-color-scheme: light)" />
   <title>Shop Inventory</title>
   <link rel="stylesheet" href="/css/app.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234054e8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/><path d='m3.3 7 8.7 5 8.7-5'/><path d='M12 22V12'/></svg>" />
 </head>
 <body>
+  <!--
+    Icons are inline SVG rather than emoji: they inherit currentColor, stay
+    monochrome with the rest of the sidebar, and render identically on every
+    platform instead of picking up each OS's own emoji font.
+  -->
+
   <!-- Login gate -->
   <div id="login-screen" class="login-screen" hidden>
     <form id="login-form" class="login-card" autocomplete="on">
-      <div class="login-logo">📦</div>
+      <div class="login-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+          <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+        </svg>
+      </div>
       <h1>Shop Inventory</h1>
       <p class="login-sub">Sign in to manage your stock</p>
 
@@ -26,7 +39,6 @@
 
       <div id="login-error" class="alert alert-error" hidden></div>
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
-      <p class="login-hint">First run? Use <code>admin</code> / <code>admin123</code></p>
     </form>
   </div>
 
@@ -34,23 +46,70 @@
   <div id="app-screen" class="app" hidden>
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <span class="brand-mark">📦</span>
+        <span class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+            <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+          </svg>
+        </span>
         <span class="brand-name" id="brand-name">Shop Inventory</span>
       </div>
 
       <nav class="nav" id="nav">
-        <a class="nav-item" href="#/dashboard"  data-icon="▦">Dashboard</a>
-        <a class="nav-item" href="#/pos"        data-icon="🛒">New Sale</a>
-        <a class="nav-item" href="#/products"   data-icon="📦">Products</a>
-        <a class="nav-item" href="#/stock"      data-icon="⇅">Stock</a>
-        <a class="nav-item" href="#/sales"      data-icon="🧾">Sales</a>
+        <a class="nav-item" href="#/dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/>
+            <rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
+          </svg>Dashboard</a>
+        <a class="nav-item" href="#/pos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+          </svg>New Sale</a>
+        <a class="nav-item" href="#/products">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+            <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+          </svg>Products</a>
+        <a class="nav-item" href="#/stock">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m17 3 4 4-4 4"/><path d="M21 7H9a4 4 0 0 0-4 4v1"/>
+            <path d="m7 21-4-4 4-4"/><path d="M3 17h12a4 4 0 0 0 4-4v-1"/>
+          </svg>Stock</a>
+        <a class="nav-item" href="#/sales">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5Z"/>
+            <path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/>
+          </svg>Sales</a>
+
         <div class="nav-sep">Catalogue</div>
-        <a class="nav-item" href="#/categories" data-icon="🏷">Categories</a>
-        <a class="nav-item" href="#/suppliers"  data-icon="🚚">Suppliers</a>
+        <a class="nav-item" href="#/categories">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/>
+            <circle cx="7.5" cy="7.5" r="1.5"/>
+          </svg>Categories</a>
+        <a class="nav-item" href="#/suppliers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+            <path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
+            <circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>
+          </svg>Suppliers</a>
+
         <div class="nav-sep">Insights</div>
-        <a class="nav-item" href="#/reports"    data-icon="📊">Reports</a>
-        <a class="nav-item" href="#/settings"   data-icon="⚙">Settings</a>
-        <a class="nav-item" href="#/users"      data-icon="👥" data-admin>Users</a>
+        <a class="nav-item" href="#/reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+          </svg>Reports</a>
+        <a class="nav-item" href="#/settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>Settings</a>
+        <a class="nav-item" href="#/users" data-admin>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>Users</a>
       </nav>
 
       <div class="sidebar-foot">
