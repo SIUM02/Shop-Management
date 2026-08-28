@@ -24,6 +24,14 @@
   --cyan:          #06b6d4;
   --pink:          #ec4899;
 
+  /* Soft tinted surfaces for the dashboard's headline tiles — a pastel wash
+     behind each figure rather than a plain white card, so the row of KPIs
+     reads as a set of distinct signals instead of four identical boxes. */
+  --tint-1-bg: #eeecfc; --tint-1-fg: #5b4bde;
+  --tint-2-bg: #e3f1fc; --tint-2-fg: #1c7fc4;
+  --tint-3-bg: #fbe8f2; --tint-3-fg: #c23a83;
+  --tint-4-bg: #e4f6ee; --tint-4-fg: #0d9463;
+
   --ok:            #0d9463;
   --ok-soft:       #e3f7ee;
   --warn:          #c07807;
@@ -479,6 +487,42 @@ select { cursor: pointer; }
 .kpi.accent-danger .kpi-value { color: var(--danger); }
 .kpi.accent-danger::after { background: linear-gradient(180deg, #fb7185, var(--danger)); }
 
+/* ---- soft pastel variant: a tinted card with an icon chip, in place of the
+   plain white tile + left accent bar. Cycle four tints across the row. ---- */
+.kpi-soft {
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--tint-bg);
+}
+.kpi-soft::after { display: none; }
+.kpi.kpi-soft:hover { border-color: transparent; }
+.kpi-soft .kpi-label { color: var(--tint-fg); opacity: .82; }
+.kpi-soft .kpi-value { color: var(--tint-fg); }
+.kpi-soft .kpi-sub { color: var(--tint-fg); opacity: .72; }
+
+.kpi-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.kpi-icon {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .6);
+  color: var(--tint-fg);
+}
+.kpi-icon svg { width: 17px; height: 17px; }
+
+.kpi-tint-1 { --tint-bg: var(--tint-1-bg); --tint-fg: var(--tint-1-fg); }
+.kpi-tint-2 { --tint-bg: var(--tint-2-bg); --tint-fg: var(--tint-2-fg); }
+.kpi-tint-3 { --tint-bg: var(--tint-3-bg); --tint-fg: var(--tint-3-fg); }
+.kpi-tint-4 { --tint-bg: var(--tint-4-bg); --tint-fg: var(--tint-4-fg); }
+/* Severity-linked tints for the restocking tile, reusing the same soft
+   badge tokens as everywhere else red/amber/green already means something —
+   a pastel card should not cost the tile its actual danger signal. */
+.kpi-tint-danger { --tint-bg: var(--danger-soft); --tint-fg: var(--danger); }
+.kpi-tint-warn    { --tint-bg: var(--warn-soft);   --tint-fg: var(--warn); }
+.kpi-tint-ok      { --tint-bg: var(--ok-soft);     --tint-fg: var(--ok); }
+
+
 /* ------------------------------------------------------------------ tables */
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -578,12 +622,16 @@ tfoot td {
 
 /* ------------------------------------------------------------------ chart */
 .chart { width: 100%; height: 180px; display: block; }
-.chart .bar { fill: var(--brand); opacity: .92; transition: opacity .14s var(--ease); rx: .8; }
+/* Every bar but today's sits in a light, low-opacity fill; today's is solid
+   and full-strength, so the current figure reads at a glance against the
+   trailing days rather than blending into a uniform row of bars. */
+.chart .bar { fill: var(--tint-1-fg); opacity: .28; transition: opacity .14s var(--ease); rx: .8; }
+.chart .bar.bar-current { opacity: .95; }
 .chart .bar:hover { opacity: 1; }
 .chart .axis { stroke: var(--border); stroke-width: 1; }
 .chart .label { font-size: 9.5px; fill: var(--text-faint); }
 
-.bar-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-bottom: 13px; }
+.bar-row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin-bottom: 13px; }
 .bar-row:last-child { margin-bottom: 0; }
 .bar-track { height: 7px; background: var(--surface-3); border-radius: 100px; overflow: hidden; margin-top: 6px; }
 .bar-fill  {
@@ -592,6 +640,15 @@ tfoot td {
   border-radius: 100px;
 }
 .bar-name  { font-size: 13.5px; font-weight: 520; }
+.bar-avatar {
+  width: 34px; height: 34px;
+  flex: 0 0 34px;
+  border-radius: 11px;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700;
+  color: var(--tint-fg);
+  background: var(--tint-bg);
+}
 
 /* ------------------------------------------------------------------ modal */
 .modal-backdrop {

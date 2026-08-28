@@ -285,7 +285,10 @@ export function barChart(points, { valueKey = 'revenue', labelKey = 'day', forma
     const x = i * slot + pad;
     const y = H - h;
     const label = `${p[labelKey]}: ${format(v)}`;
-    return `<rect class="bar" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}"
+    // The most recent point gets its own class so it can be drawn solid
+    // against the lighter trailing bars — see .chart .bar.bar-current.
+    const cls = i === points.length - 1 ? 'bar bar-current' : 'bar';
+    return `<rect class="${cls}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}"
               height="${Math.max(h, 0.6).toFixed(2)}" rx="0.5"><title>${esc(label)}</title></rect>`;
   }).join('');
 
