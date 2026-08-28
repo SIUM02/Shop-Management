@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Shop Inventory</title>
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>" />
+</head>
+<body>
+  <!-- Login gate -->
+  <div id="login-screen" class="login-screen" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <div class="login-logo">📦</div>
+      <h1>Shop Inventory</h1>
+      <p class="login-sub">Sign in to manage your stock</p>
+
+      <label class="field">
+        <span>Username</span>
+        <input name="username" type="text" autocomplete="username" required autofocus />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input name="password" type="password" autocomplete="current-password" required />
+      </label>
+
+      <div id="login-error" class="alert alert-error" hidden></div>
+      <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+      <p class="login-hint">First run? Use <code>admin</code> / <code>admin123</code></p>
+    </form>
+  </div>
+
+  <!-- Main application -->
+  <div id="app-screen" class="app" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-mark">📦</span>
+        <span class="brand-name" id="brand-name">Shop Inventory</span>
+      </div>
+
+      <nav class="nav" id="nav">
+        <a class="nav-item" href="#/dashboard"  data-icon="▦">Dashboard</a>
+        <a class="nav-item" href="#/pos"        data-icon="🛒">New Sale</a>
+        <a class="nav-item" href="#/products"   data-icon="📦">Products</a>
+        <a class="nav-item" href="#/stock"      data-icon="⇅">Stock</a>
+        <a class="nav-item" href="#/sales"      data-icon="🧾">Sales</a>
+        <div class="nav-sep">Catalogue</div>
+        <a class="nav-item" href="#/categories" data-icon="🏷">Categories</a>
+        <a class="nav-item" href="#/suppliers"  data-icon="🚚">Suppliers</a>
+        <div class="nav-sep">Insights</div>
+        <a class="nav-item" href="#/reports"    data-icon="📊">Reports</a>
+        <a class="nav-item" href="#/settings"   data-icon="⚙">Settings</a>
+        <a class="nav-item" href="#/users"      data-icon="👥" data-admin>Users</a>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="who">
+          <div class="avatar" id="user-avatar">A</div>
+          <div class="who-text">
+            <strong id="user-name">—</strong>
+            <span id="user-role">—</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-block" id="logout-btn">Sign out</button>
+      </div>
+    </aside>
+
+    <div class="sidebar-scrim" id="sidebar-scrim"></div>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menu-btn" aria-label="Menu">☰</button>
+        <h1 id="page-title">Dashboard</h1>
+        <div class="topbar-actions" id="page-actions"></div>
+      </header>
+      <div class="content" id="view"></div>
+    </main>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-root"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

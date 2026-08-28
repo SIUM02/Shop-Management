@@ -1,0 +1,23 @@
+{
+  "name": "shop-inventory",
+  "version": "1.0.0",
+  "description": "Inventory management webapp for a retail shop",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node src/seed.js",
+    "reset": "node src/seed.js --reset",
+    "convert-currency": "node src/convert-currency.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
