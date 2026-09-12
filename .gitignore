@@ -11,3 +11,4 @@ data/*.db-shm
 .vercel
 .env*
 !.env.example
+build/
