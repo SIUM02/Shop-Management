@@ -82,11 +82,15 @@ async function main() {
   const next = {};
   for (const { name } of pools) {
     const { prefix } = POOLS[name];
-    const row = await q.get(
-      "SELECT MAX(NULLIF(regexp_replace(sku::text, '^' || ? || '-', ''), '')::int) AS n FROM products WHERE sku::text LIKE ?",
-      prefix, `${prefix}-%`
-    );
-    next[prefix] = Math.max(Number(row?.n) || 0, 99) + 1;
+    // The numeric part is pulled out in JS rather than SQL: regexp_replace and
+    // ::int casts are Postgres-only, and this script has to run on either
+    // database. The row count per prefix is small enough that it costs nothing.
+    const rows = await q.all('SELECT sku FROM products WHERE sku LIKE ?', `${prefix}-%`);
+    const highest = rows.reduce((max, r) => {
+      const n = Number(String(r.sku).slice(prefix.length + 1));
+      return Number.isInteger(n) && n > max ? n : max;
+    }, 0);
+    next[prefix] = Math.max(highest, 99) + 1;
   }
 
   const created = await transaction(async (tx) => {

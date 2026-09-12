@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { applyDefaultSettings, pool, q, ready, transaction } from './db.js';
+import { applyDefaultSettings, pool, q, ready, resetAllTables, transaction } from './db.js';
 import { hashPassword } from './auth.js';
 
 const DEMO_CATEGORIES = [
@@ -154,12 +154,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 
   if (process.argv.includes('--reset')) {
     console.log('সব তথ্য মুছে ফেলা হচ্ছে…');
-    // TRUNCATE ... RESTART IDENTITY replaces both the DELETEs and the
-    // sqlite_sequence reset; CASCADE handles the foreign keys, so the
-    // PRAGMA dance around them is not needed.
-    await q.exec(`TRUNCATE TABLE
-      sale_items, sales, stock_movements, products, categories, suppliers, users, settings
-      RESTART IDENTITY CASCADE`);
+    // How the tables are emptied differs by database, so the driver decides.
+    await resetAllTables();
     // settings were cleared too, so put the shipped defaults back.
     await applyDefaultSettings();
   }
