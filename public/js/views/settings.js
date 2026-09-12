@@ -73,8 +73,8 @@ export async function render(root, ctx) {
       <div class="card-head"><h2>তথ্য ও ব্যাকআপ</h2></div>
       <div class="card-body">
         <p class="muted small" style="margin-top:0">
-          সবকিছু একটি মাত্র SQLite ফাইলে থাকে (<span class="mono">data/shop.db</span>)।
-          ব্যাকআপ নিতে সার্ভার বন্ধ করে ফাইলটি কপি করুন — অথবা নিচের CSV ফাইলগুলো ডাউনলোড করুন।
+          সব তথ্য একটি Postgres ডেটাবেসে সংরক্ষিত থাকে, তাই কম্পিউটার বদলালেও তথ্য থেকে যায়।
+          নিজের কাছে একটি কপি রাখতে নিচের CSV ফাইলগুলো ডাউনলোড করে নিরাপদ জায়গায় রাখুন।
         </p>
         <div style="display:flex;gap:9px;flex-wrap:wrap">
           <a class="btn" href="/api/reports/export/products">পণ্যের CSV ডাউনলোড</a>
