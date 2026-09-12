@@ -7,8 +7,8 @@ const PAGE = 60;
 
 export async function render(root, ctx) {
   const actions = ctx.setActions(`
-    <button class="btn" id="export-btn">Export CSV</button>
-    <button class="btn btn-primary" id="record-btn">＋ Record Movement</button>
+    <button class="btn" id="export-btn">CSV এক্সপোর্ট</button>
+    <button class="btn btn-primary" id="record-btn">＋ লেনদেন নথিভুক্ত করুন</button>
   `);
 
   actions.querySelector('#export-btn').addEventListener('click', () => {
@@ -18,18 +18,18 @@ export async function render(root, ctx) {
 
   root.innerHTML = `
     <div class="toolbar">
-      <input class="search" id="f-search" type="search" placeholder="Search product, reference or note…" value="${esc(filters.search)}" />
+      <input class="search" id="f-search" type="search" placeholder="পণ্য, রেফারেন্স বা নোট খুঁজুন…" value="${esc(filters.search)}" />
       <select id="f-type">
-        <option value="">All movement types</option>
-        <option value="in"     ${filters.type === 'in' ? 'selected' : ''}>Stock in</option>
-        <option value="out"    ${filters.type === 'out' ? 'selected' : ''}>Stock out</option>
-        <option value="sale"   ${filters.type === 'sale' ? 'selected' : ''}>Sales</option>
-        <option value="adjust" ${filters.type === 'adjust' ? 'selected' : ''}>Adjustments</option>
-        <option value="return" ${filters.type === 'return' ? 'selected' : ''}>Returns</option>
+        <option value="">সব ধরনের লেনদেন</option>
+        <option value="in"     ${filters.type === 'in' ? 'selected' : ''}>স্টক গ্রহণ</option>
+        <option value="out"    ${filters.type === 'out' ? 'selected' : ''}>স্টক হ্রাস</option>
+        <option value="sale"   ${filters.type === 'sale' ? 'selected' : ''}>বিক্রয়</option>
+        <option value="adjust" ${filters.type === 'adjust' ? 'selected' : ''}>সমন্বয়</option>
+        <option value="return" ${filters.type === 'return' ? 'selected' : ''}>ফেরত</option>
       </select>
-      <input id="f-from" type="date" value="${esc(filters.from)}" title="From date" />
-      <input id="f-to"   type="date" value="${esc(filters.to)}" title="To date" />
-      <button class="btn btn-sm" id="f-clear">Clear</button>
+      <input id="f-from" type="date" value="${esc(filters.from)}" title="শুরুর তারিখ" />
+      <input id="f-to"   type="date" value="${esc(filters.to)}" title="শেষ তারিখ" />
+      <button class="btn btn-sm" id="f-clear">মুছুন</button>
     </div>
     <div class="card"><div class="card-body tight" id="list">${loading()}</div></div>`;
 
@@ -64,14 +64,14 @@ async function load(root, ctx) {
   box.innerHTML = loading();
 
   const { items, total } = await api.movements({ ...filters, limit: PAGE });
-  if (!items.length) return void (box.innerHTML = empty('No stock movements match these filters', '⇅'));
+  if (!items.length) return void (box.innerHTML = empty('এই ফিল্টারে কোনো স্টক লেনদেন মেলেনি', '⇅'));
 
   box.innerHTML = `
     <div class="table-wrap"><table>
       <thead><tr>
-        <th>When</th><th>Product</th><th>Type</th>
-        <th class="num">Change</th><th class="num">Before</th><th class="num">After</th>
-        <th>Reference</th><th>By</th>
+        <th>কখন</th><th>পণ্য</th><th>ধরন</th>
+        <th class="num">পরিবর্তন</th><th class="num">আগে</th><th class="num">পরে</th>
+        <th>রেফারেন্স</th><th>কে করেছেন</th>
       </tr></thead>
       <tbody>${items.map((m) => `
         <tr>
@@ -93,10 +93,10 @@ async function load(root, ctx) {
         </tr>`).join('')}</tbody>
     </table></div>
     <div class="pager">
-      <span>Showing ${filters.offset + 1}–${filters.offset + items.length} of ${int(total)}</span>
+      <span>${int(total)}টির মধ্যে ${filters.offset + 1}–${filters.offset + items.length} দেখানো হচ্ছে</span>
       <span class="spacer"></span>
-      <button class="btn btn-sm" id="prev" ${filters.offset === 0 ? 'disabled' : ''}>← Previous</button>
-      <button class="btn btn-sm" id="next" ${filters.offset + PAGE >= total ? 'disabled' : ''}>Next →</button>
+      <button class="btn btn-sm" id="prev" ${filters.offset === 0 ? 'disabled' : ''}>← আগের</button>
+      <button class="btn btn-sm" id="next" ${filters.offset + PAGE >= total ? 'disabled' : ''}>পরের →</button>
     </div>`;
 
   box.querySelector('#prev')?.addEventListener('click', () => {
@@ -114,11 +114,11 @@ async function pickProduct(ctx) {
   const { modal } = await import('../ui.js');
 
   modal({
-    title: 'Record a stock movement',
+    title: 'স্টক লেনদেন নথিভুক্ত করুন',
     body: `
       <label class="field">
-        <span>Which product?</span>
-        <input id="pick-search" type="search" placeholder="Search by name, SKU or barcode…" autofocus />
+        <span>কোন পণ্য?</span>
+        <input id="pick-search" type="search" placeholder="নাম, SKU বা বারকোড দিয়ে খুঁজুন…" autofocus />
       </label>
       <div class="pos-results" id="pick-results" style="max-height:340px"></div>`,
     onMount: (el, close) => {
@@ -127,7 +127,7 @@ async function pickProduct(ctx) {
 
       const run = async (term) => {
         const { items } = await api.products({ search: term, limit: 30 });
-        if (!items.length) return void (results.innerHTML = empty('No products found', '🔍'));
+        if (!items.length) return void (results.innerHTML = empty('কোনো পণ্য পাওয়া যায়নি', '🔍'));
 
         results.innerHTML = items.map((p) => `
           <div class="pos-pick" data-id="${p.id}">

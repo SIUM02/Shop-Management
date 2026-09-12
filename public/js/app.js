@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { animateCounters, closeModal, esc, loading, state, toast } from './ui.js';
+import { animateCounters, closeModal, esc, loading, roleLabel, state, toast } from './ui.js';
 
 import * as dashboard  from './views/dashboard.js';
 import * as products   from './views/products.js';
@@ -13,16 +13,16 @@ import * as users      from './views/users.js';
 import * as settings   from './views/settings.js';
 
 const ROUTES = {
-  dashboard:  { title: 'Dashboard',       view: dashboard },
-  pos:        { title: 'New Sale',        view: pos },
-  products:   { title: 'Products',        view: products },
-  stock:      { title: 'Stock Movements', view: stock },
-  sales:      { title: 'Sales',           view: sales },
-  categories: { title: 'Categories',      view: categories },
-  suppliers:  { title: 'Suppliers',       view: suppliers },
-  reports:    { title: 'Reports',         view: reports },
-  users:      { title: 'Users',           view: users, roles: ['admin'] },
-  settings:   { title: 'Settings',        view: settings },
+  dashboard:  { title: 'ড্যাশবোর্ড',        view: dashboard },
+  pos:        { title: 'নতুন বিক্রয়',       view: pos },
+  products:   { title: 'পণ্য',              view: products },
+  stock:      { title: 'স্টক লেনদেন',       view: stock },
+  sales:      { title: 'বিক্রয়',            view: sales },
+  categories: { title: 'ক্যাটাগরি',          view: categories },
+  suppliers:  { title: 'সরবরাহকারী',        view: suppliers },
+  reports:    { title: 'রিপোর্ট',           view: reports },
+  users:      { title: 'ব্যবহারকারী',        view: users, roles: ['admin'] },
+  settings:   { title: 'সেটিংস',            view: settings },
 };
 
 const el = {
@@ -67,7 +67,7 @@ async function renderRoute() {
 
   if (!route) return navigate('dashboard');
   if (route.roles && !route.roles.includes(state.user.role)) {
-    toast('You do not have access to that page', 'error');
+    toast('এই পাতায় আপনার প্রবেশাধিকার নেই', 'error');
     return navigate('dashboard');
   }
 
@@ -91,7 +91,7 @@ async function renderRoute() {
     if (err.unauthorized) return showLogin(err.message);
     el.view.innerHTML = `<div class="card"><div class="card-body">
       <div class="alert alert-error">${esc(err.message)}</div>
-      <button class="btn" id="reload-btn">Reload</button>
+      <button class="btn" id="reload-btn">আবার লোড করুন</button>
     </div></div>`;
     el.view.querySelector('#reload-btn').addEventListener('click', () => location.reload());
   }
@@ -115,7 +115,7 @@ async function showApp() {
   el.app.hidden = false;
 
   document.getElementById('user-name').textContent = state.user.full_name || state.user.username;
-  document.getElementById('user-role').textContent = state.user.role;
+  document.getElementById('user-role').textContent = roleLabel(state.user.role);
   document.getElementById('user-avatar').textContent =
     (state.user.full_name || state.user.username).charAt(0).toUpperCase();
 
@@ -132,9 +132,9 @@ async function showApp() {
 }
 
 export function applySettings() {
-  const name = state.settings.shop_name || 'Shop Inventory';
+  const name = state.settings.shop_name || 'দোকান ইনভেন্টরি';
   document.getElementById('brand-name').textContent = name;
-  document.title = `${name} · Inventory`;
+  document.title = `${name} · ইনভেন্টরি`;
 }
 
 /* ------------------------------------------------------------------ events */
@@ -145,7 +145,7 @@ el.form.addEventListener('submit', async (e) => {
   const data = new FormData(el.form);
 
   btn.disabled = true;
-  btn.textContent = 'Signing in…';
+  btn.textContent = 'সাইন ইন হচ্ছে…';
   el.error.hidden = true;
 
   try {
@@ -158,13 +158,13 @@ el.form.addEventListener('submit', async (e) => {
     el.error.hidden = false;
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Sign in';
+    btn.textContent = 'সাইন ইন';
   }
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   try { await api.logout(); } catch { /* signing out locally is enough */ }
-  showLogin('You have been signed out.');
+  showLogin('আপনি সাইন আউট হয়ে গেছেন।');
 });
 
 const openSidebar  = () => { el.sidebar.classList.add('open'); el.scrim.classList.add('show'); };

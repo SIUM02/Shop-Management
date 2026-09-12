@@ -5,38 +5,38 @@ import { applyDefaultSettings, pool, q, ready, transaction } from './db.js';
 import { hashPassword } from './auth.js';
 
 const DEMO_CATEGORIES = [
-  ['Beverages', 'Soft drinks, water, juice and tea'],
-  ['Snacks', 'Chips, biscuits and confectionery'],
-  ['Stationery', 'Pens, paper and office supplies'],
-  ['Household', 'Cleaning and everyday home items'],
-  ['Electronics', 'Cables, batteries and small accessories'],
+  ['পানীয়', 'কোমল পানীয়, পানি, জুস ও চা'],
+  ['স্ন্যাকস', 'চিপস, বিস্কুট ও মিষ্টান্ন'],
+  ['স্টেশনারি', 'কলম, কাগজ ও অফিস সামগ্রী'],
+  ['গৃহস্থালি', 'পরিষ্কারক ও দৈনন্দিন ঘরোয়া জিনিস'],
+  ['ইলেকট্রনিকস', 'তার, ব্যাটারি ও ছোট যন্ত্রাংশ'],
 ];
 
 const DEMO_SUPPLIERS = [
-  ['Metro Wholesale', 'Rina Ahmed', '01711-000111', 'orders@metrowholesale.example', '12 Market Road'],
-  ['CityLine Distributors', 'Kamal Hossain', '01822-000222', 'sales@cityline.example', '5 Industrial Ave'],
-  ['Bright Supplies Co.', 'Nadia Islam', '01933-000333', 'hello@brightsupplies.example', '77 Trade Center'],
+  ['মেট্রো হোলসেল', 'রিনা আহমেদ', '01711-000111', 'orders@metrowholesale.example', '১২ মার্কেট রোড'],
+  ['সিটিলাইন ডিস্ট্রিবিউটরস', 'কামাল হোসেন', '01822-000222', 'sales@cityline.example', '৫ ইন্ডাস্ট্রিয়াল এভিনিউ'],
+  ['ব্রাইট সাপ্লাইজ কোং', 'নাদিয়া ইসলাম', '01933-000333', 'hello@brightsupplies.example', '৭৭ ট্রেড সেন্টার'],
 ];
 
 // sku, name, category index, supplier index, cost, sell, qty, reorder level, unit
 // Prices are in Taka, at typical Bangladeshi retail levels.
 const DEMO_PRODUCTS = [
-  ['BEV-001', 'Mineral Water 500ml',      0, 0,  12,  20, 240,  60, 'pcs'],
-  ['BEV-002', 'Cola Can 330ml',           0, 0,  38,  55, 180,  48, 'pcs'],
-  ['BEV-003', 'Orange Juice 1L',          0, 1, 150, 220,  36,  24, 'pcs'],
-  ['BEV-004', 'Green Tea Box (25 bags)',  0, 1, 180, 260,  14,  20, 'box'],
-  ['SNK-001', 'Potato Chips 100g',        1, 0,  75, 110, 120,  40, 'pcs'],
-  ['SNK-002', 'Chocolate Bar 45g',        1, 2,  45,  70,  95,  50, 'pcs'],
-  ['SNK-003', 'Salted Biscuits 200g',     1, 2,  55,  85,   8,  25, 'pack'],
-  ['STA-001', 'Ballpoint Pen (Blue)',     2, 2,   8,  15, 500, 100, 'pcs'],
-  ['STA-002', 'A4 Notebook 100 pages',    2, 2,  60, 100,  64,  30, 'pcs'],
-  ['STA-003', 'Sticky Notes 3x3',         2, 1,  45,  80,   0,  20, 'pad'],
-  ['HHD-001', 'Dish Soap 500ml',          3, 1,  95, 145,  42,  20, 'bottle'],
-  ['HHD-002', 'Laundry Detergent 1kg',    3, 1, 210, 320,  18,  15, 'pack'],
-  ['HHD-003', 'Paper Towels 2-roll',      3, 0, 110, 170,   6,  18, 'pack'],
-  ['ELC-001', 'AA Batteries (4-pack)',    4, 2, 130, 200,  55,  24, 'pack'],
-  ['ELC-002', 'USB-C Cable 1m',           4, 2, 180, 350,  27,  15, 'pcs'],
-  ['ELC-003', 'Phone Charger 20W',        4, 2, 450, 850,   9,  10, 'pcs'],
+  ['BEV-001', 'মিনারেল ওয়াটার ৫০০ মিলি',     0, 0,  12,  20, 240,  60, 'পিস'],
+  ['BEV-002', 'কোলা ক্যান ৩৩০ মিলি',          0, 0,  38,  55, 180,  48, 'পিস'],
+  ['BEV-003', 'কমলার জুস ১ লিটার',            0, 1, 150, 220,  36,  24, 'পিস'],
+  ['BEV-004', 'গ্রিন টি বক্স (২৫ ব্যাগ)',       0, 1, 180, 260,  14,  20, 'বক্স'],
+  ['SNK-001', 'পটেটো চিপস ১০০ গ্রাম',         1, 0,  75, 110, 120,  40, 'পিস'],
+  ['SNK-002', 'চকলেট বার ৪৫ গ্রাম',           1, 2,  45,  70,  95,  50, 'পিস'],
+  ['SNK-003', 'সল্টেড বিস্কুট ২০০ গ্রাম',       1, 2,  55,  85,   8,  25, 'প্যাক'],
+  ['STA-001', 'বলপয়েন্ট কলম (নীল)',          2, 2,   8,  15, 500, 100, 'পিস'],
+  ['STA-002', 'এ৪ খাতা ১০০ পাতা',            2, 2,  60, 100,  64,  30, 'পিস'],
+  ['STA-003', 'স্টিকি নোট ৩x৩',              2, 1,  45,  80,   0,  20, 'প্যাড'],
+  ['HHD-001', 'ডিশ সোপ ৫০০ মিলি',            3, 1,  95, 145,  42,  20, 'বোতল'],
+  ['HHD-002', 'কাপড় ধোয়ার ডিটারজেন্ট ১ কেজি', 3, 1, 210, 320,  18,  15, 'প্যাক'],
+  ['HHD-003', 'পেপার টাওয়েল ২ রোল',          3, 0, 110, 170,   6,  18, 'প্যাক'],
+  ['ELC-001', 'এএ ব্যাটারি (৪টির প্যাক)',      4, 2, 130, 200,  55,  24, 'প্যাক'],
+  ['ELC-002', 'ইউএসবি-সি কেবল ১ মিটার',      4, 2, 180, 350,  27,  15, 'পিস'],
+  ['ELC-003', 'ফোন চার্জার ২০ওয়াট',          4, 2, 450, 850,   9,  10, 'পিস'],
 ];
 
 /**
@@ -50,7 +50,7 @@ function initialAdminPassword() {
   const fromEnv = (process.env.ADMIN_PASSWORD || '').trim();
   if (fromEnv) {
     if (fromEnv.length < 8) {
-      throw new Error('ADMIN_PASSWORD must be at least 8 characters');
+      throw new Error('ADMIN_PASSWORD কমপক্ষে ৮ অক্ষরের হতে হবে');
     }
     return { password: fromEnv, source: 'env' };
   }
@@ -94,7 +94,7 @@ export async function ensureSeed() {
     const adminId = Number(
       (await tx.insert(
         "INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, 'admin')",
-        'admin', hashPassword(admin.password), 'Shop Owner'
+        'admin', hashPassword(admin.password), 'দোকান মালিক'
       )).lastInsertRowid
     );
 
@@ -131,7 +131,7 @@ export async function ensureSeed() {
         await tx.run(
           `INSERT INTO stock_movements
              (product_id, type, quantity, before_qty, after_qty, unit_cost, reference, note, user_id)
-           VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'Opening stock', ?)`,
+           VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'প্রারম্ভিক স্টক', ?)`,
           id, qty, qty, cost, adminId
         );
       }
@@ -153,7 +153,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   await ready();
 
   if (process.argv.includes('--reset')) {
-    console.log('Clearing all data…');
+    console.log('সব তথ্য মুছে ফেলা হচ্ছে…');
     // TRUNCATE ... RESTART IDENTITY replaces both the DELETEs and the
     // sqlite_sequence reset; CASCADE handles the foreign keys, so the
     // PRAGMA dance around them is not needed.
@@ -166,10 +166,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 
   const seeded = await ensureSeed();
   if (seeded) {
-    console.log(`Seeded. Sign in as "${seeded.username}" with password: ${seeded.password}`);
-    if (seeded.source === 'generated') console.log('Save that password now — it is not stored anywhere in plain text.');
+    console.log(`প্রাথমিক তথ্য যোগ হয়েছে। "${seeded.username}" হিসেবে এই পাসওয়ার্ড দিয়ে সাইন ইন করুন: ${seeded.password}`);
+    if (seeded.source === 'generated') console.log('পাসওয়ার্ডটি এখনই সংরক্ষণ করুন — এটি কোথাও সাধারণ লেখায় রাখা হয় না।');
   } else {
-    console.log('Database already has users — nothing to do.');
+    console.log('ডেটাবেসে আগে থেকেই ব্যবহারকারী আছে — কিছু করার নেই।');
   }
   await pool.end();
 }

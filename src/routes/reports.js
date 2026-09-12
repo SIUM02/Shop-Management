@@ -225,7 +225,7 @@ router.get(
   '/export/:what',
   wrap(async (req, res) => {
     const source = CSV_SOURCES[req.params.what];
-    if (!source) return res.status(404).json({ error: 'Unknown export' });
+    if (!source) return res.status(404).json({ error: 'অজানা এক্সপোর্ট' });
 
     // A CSV goes out through res.send, so it never passes the JSON redaction
     // middleware — run the rows through the same policy by hand.

@@ -20,11 +20,11 @@ router.post(
   '/',
   requireRole('admin', 'manager'),
   wrap(async (req, res) => {
-    const name = str(req.body.name, { field: 'Name', required: true, max: 100 });
-    const description = str(req.body.description, { field: 'Description', max: 500 });
+    const name = str(req.body.name, { field: 'নাম', required: true, max: 100 });
+    const description = str(req.body.description, { field: 'বিবরণ', max: 500 });
 
     const exists = await q.get('SELECT id FROM categories WHERE name = ?', name);
-    if (exists) throw new HttpError(409, `Category "${name}" already exists`);
+    if (exists) throw new HttpError(409, `"${name}" নামে একটি ক্যাটাগরি আগে থেকেই আছে`);
 
     const info = await q.insert('INSERT INTO categories (name, description) VALUES (?, ?)', name, description);
     res.status(201).json(
@@ -39,13 +39,13 @@ router.put(
   wrap(async (req, res) => {
     const id = Number(req.params.id);
     const current = await q.get('SELECT * FROM categories WHERE id = ?', id);
-    if (!current) throw notFound('Category not found');
+    if (!current) throw notFound('ক্যাটাগরি পাওয়া যায়নি');
 
-    const name = str(req.body.name, { field: 'Name', required: true, max: 100 });
-    const description = str(req.body.description, { field: 'Description', max: 500 });
+    const name = str(req.body.name, { field: 'নাম', required: true, max: 100 });
+    const description = str(req.body.description, { field: 'বিবরণ', max: 500 });
 
     const clash = await q.get('SELECT id FROM categories WHERE name = ? AND id != ?', name, id);
-    if (clash) throw new HttpError(409, `Category "${name}" already exists`);
+    if (clash) throw new HttpError(409, `"${name}" নামে একটি ক্যাটাগরি আগে থেকেই আছে`);
 
     await q.run('UPDATE categories SET name = ?, description = ? WHERE id = ?', name, description, id);
     res.json(await q.get('SELECT * FROM categories WHERE id = ?', id));
@@ -58,7 +58,7 @@ router.delete(
   wrap(async (req, res) => {
     const id = Number(req.params.id);
     const current = await q.get('SELECT * FROM categories WHERE id = ?', id);
-    if (!current) throw notFound('Category not found');
+    if (!current) throw notFound('ক্যাটাগরি পাওয়া যায়নি');
 
     // Products survive; the FK is ON DELETE SET NULL so they become uncategorised.
     await q.run('DELETE FROM categories WHERE id = ?', id);

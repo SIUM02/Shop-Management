@@ -17,7 +17,7 @@ export async function applyMovement(tx, { productId, type, quantity, unitCost, r
   // FOR UPDATE locks the row for the life of the transaction, so two tills
   // selling the last unit at once cannot both read the same "before" quantity.
   const product = await tx.get('SELECT * FROM products WHERE id = ? FOR UPDATE', productId);
-  if (!product) throw notFound(`Product ${productId} not found`);
+  if (!product) throw notFound(`${productId} নম্বর পণ্যটি পাওয়া যায়নি`);
 
   const before = product.quantity;
   let after;
@@ -36,7 +36,7 @@ export async function applyMovement(tx, { productId, type, quantity, unitCost, r
 
   if (after < 0 && !allowNegative) {
     throw badRequest(
-      `Not enough stock for "${product.name}". In stock: ${before}, requested: ${Math.abs(delta)}.`
+      `"${product.name}" এর পর্যাপ্ত স্টক নেই। স্টকে আছে: ${before}, চাওয়া হয়েছে: ${Math.abs(delta)}।`
     );
   }
 
@@ -89,17 +89,17 @@ router.get(
 router.post(
   '/in',
   wrap(async (req, res) => {
-    const productId = int(req.body.product_id, { field: 'Product', required: true, min: 1 });
-    const quantity = int(req.body.quantity, { field: 'Quantity', required: true, min: 1 });
+    const productId = int(req.body.product_id, { field: 'পণ্য', required: true, min: 1 });
+    const quantity = int(req.body.quantity, { field: 'পরিমাণ', required: true, min: 1 });
     const unitCost = req.body.unit_cost === undefined || req.body.unit_cost === ''
       ? null
-      : money(num(req.body.unit_cost, { field: 'Unit cost', min: 0 }));
+      : money(num(req.body.unit_cost, { field: 'একক ক্রয়মূল্য', min: 0 }));
 
     const result = await transaction(async (tx) => {
       const out = await applyMovement(tx, {
         productId, type: 'in', quantity, unitCost,
-        reference: str(req.body.reference, { field: 'Reference', max: 100 }),
-        note: str(req.body.note, { field: 'Note', max: 500 }),
+        reference: str(req.body.reference, { field: 'রেফারেন্স', max: 100 }),
+        note: str(req.body.note, { field: 'নোট', max: 500 }),
         userId: req.user.id,
       });
       // Receiving at a new price updates the product's cost basis.
@@ -117,14 +117,14 @@ router.post(
 router.post(
   '/out',
   wrap(async (req, res) => {
-    const productId = int(req.body.product_id, { field: 'Product', required: true, min: 1 });
-    const quantity = int(req.body.quantity, { field: 'Quantity', required: true, min: 1 });
+    const productId = int(req.body.product_id, { field: 'পণ্য', required: true, min: 1 });
+    const quantity = int(req.body.quantity, { field: 'পরিমাণ', required: true, min: 1 });
 
     const result = await transaction((tx) =>
       applyMovement(tx, {
         productId, type: 'out', quantity,
-        reference: str(req.body.reference, { field: 'Reference', max: 100 }),
-        note: str(req.body.note, { field: 'Reason', max: 500 }),
+        reference: str(req.body.reference, { field: 'রেফারেন্স', max: 100 }),
+        note: str(req.body.note, { field: 'কারণ', max: 500 }),
         userId: req.user.id,
       })
     );
@@ -137,14 +137,14 @@ router.post(
 router.post(
   '/adjust',
   wrap(async (req, res) => {
-    const productId = int(req.body.product_id, { field: 'Product', required: true, min: 1 });
-    const counted = int(req.body.quantity, { field: 'Counted quantity', required: true, min: 0 });
-    const note = str(req.body.note, { field: 'Reason', required: true, max: 500 });
+    const productId = int(req.body.product_id, { field: 'পণ্য', required: true, min: 1 });
+    const counted = int(req.body.quantity, { field: 'গোনা পরিমাণ', required: true, min: 0 });
+    const note = str(req.body.note, { field: 'কারণ', required: true, max: 500 });
 
     const result = await transaction((tx) =>
       applyMovement(tx, {
         productId, type: 'adjust', quantity: counted,
-        reference: str(req.body.reference, { field: 'Reference', max: 100, fallback: 'STOCKTAKE' }),
+        reference: str(req.body.reference, { field: 'রেফারেন্স', max: 100, fallback: 'STOCKTAKE' }),
         note, userId: req.user.id,
       })
     );

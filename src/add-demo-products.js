@@ -18,40 +18,40 @@ const COUNT = Number(process.argv.find((a) => /^\d+$/.test(a)) || 100);
 
 // category name -> SKU prefix, name fragments, price band (cost min/max, margin)
 const POOLS = {
-  Beverages: {
+  'পানীয়': {
     prefix: 'BEV',
-    items: ['Mango Juice', 'Lemon Soda', 'Iced Tea', 'Black Coffee', 'Milk Tea',
-            'Energy Drink', 'Coconut Water', 'Lassi', 'Apple Juice', 'Ginger Tea'],
-    variants: ['250ml', '330ml', '500ml', '1L', '6-pack'],
-    unit: 'pcs', cost: [10, 220], markup: [1.3, 1.7],
+    items: ['আমের জুস', 'লেবু সোডা', 'আইস টি', 'ব্ল্যাক কফি', 'দুধ চা',
+            'এনার্জি ড্রিংক', 'ডাবের পানি', 'লাচ্ছি', 'আপেলের জুস', 'আদা চা'],
+    variants: ['২৫০ মিলি', '৩৩০ মিলি', '৫০০ মিলি', '১ লিটার', '৬টির প্যাক'],
+    unit: 'পিস', cost: [10, 220], markup: [1.3, 1.7],
   },
-  Snacks: {
+  'স্ন্যাকস': {
     prefix: 'SNK',
-    items: ['Banana Chips', 'Peanut Bar', 'Rice Crackers', 'Chanachur', 'Cookies',
-            'Wafer Roll', 'Cake Slice', 'Instant Noodles', 'Popcorn', 'Toast Biscuit'],
-    variants: ['50g', '100g', '150g', '250g', 'family pack'],
-    unit: 'pack', cost: [15, 180], markup: [1.35, 1.8],
+    items: ['কলার চিপস', 'বাদামের বার', 'রাইস ক্র্যাকার', 'চানাচুর', 'কুকিজ',
+            'ওয়েফার রোল', 'কেকের স্লাইস', 'ইনস্ট্যান্ট নুডলস', 'পপকর্ন', 'টোস্ট বিস্কুট'],
+    variants: ['৫০ গ্রাম', '১০০ গ্রাম', '১৫০ গ্রাম', '২৫০ গ্রাম', 'ফ্যামিলি প্যাক'],
+    unit: 'প্যাক', cost: [15, 180], markup: [1.35, 1.8],
   },
-  Stationery: {
+  'স্টেশনারি': {
     prefix: 'STA',
-    items: ['Gel Pen', 'Pencil', 'Eraser', 'Ruler 30cm', 'Marker', 'Highlighter',
-            'Stapler', 'File Folder', 'Envelope Pack', 'Drawing Book'],
-    variants: ['single', '2-pack', '5-pack', 'box of 12', 'jumbo'],
-    unit: 'pcs', cost: [5, 260], markup: [1.4, 2.0],
+    items: ['জেল কলম', 'পেন্সিল', 'রাবার', 'স্কেল ৩০ সেমি', 'মার্কার', 'হাইলাইটার',
+            'স্ট্যাপলার', 'ফাইল ফোল্ডার', 'খামের প্যাক', 'ড্রয়িং খাতা'],
+    variants: ['একটি', '২টির প্যাক', '৫টির প্যাক', '১২টির বক্স', 'জাম্বো'],
+    unit: 'পিস', cost: [5, 260], markup: [1.4, 2.0],
   },
-  Household: {
+  'গৃহস্থালি': {
     prefix: 'HHD',
-    items: ['Hand Soap', 'Toilet Cleaner', 'Air Freshener', 'Mosquito Coil', 'Matchbox',
-            'Scrub Sponge', 'Floor Cleaner', 'Bleach', 'Trash Bags', 'Candles'],
-    variants: ['small', 'medium', 'large', 'refill', 'twin pack'],
-    unit: 'pcs', cost: [12, 320], markup: [1.3, 1.75],
+    items: ['হ্যান্ড সোপ', 'টয়লেট ক্লিনার', 'এয়ার ফ্রেশনার', 'মশার কয়েল', 'দেশলাই',
+            'স্ক্রাব স্পঞ্জ', 'ফ্লোর ক্লিনার', 'ব্লিচ', 'ময়লার ব্যাগ', 'মোমবাতি'],
+    variants: ['ছোট', 'মাঝারি', 'বড়', 'রিফিল', 'জোড়া প্যাক'],
+    unit: 'পিস', cost: [12, 320], markup: [1.3, 1.75],
   },
-  Electronics: {
+  'ইলেকট্রনিকস': {
     prefix: 'ELC',
-    items: ['AAA Batteries', 'LED Bulb', 'Extension Cord', 'Earphones', 'Memory Card',
-            'Phone Case', 'Wall Adapter', 'HDMI Cable', 'Mouse', 'Power Strip'],
-    variants: ['basic', 'standard', 'premium', '2-pack', 'pro'],
-    unit: 'pcs', cost: [40, 900], markup: [1.35, 1.9],
+    items: ['এএএ ব্যাটারি', 'এলইডি বাল্ব', 'এক্সটেনশন কর্ড', 'ইয়ারফোন', 'মেমরি কার্ড',
+            'ফোন কেস', 'ওয়াল অ্যাডাপ্টার', 'এইচডিএমআই কেবল', 'মাউস', 'পাওয়ার স্ট্রিপ'],
+    variants: ['বেসিক', 'স্ট্যান্ডার্ড', 'প্রিমিয়াম', '২টির প্যাক', 'প্রো'],
+    unit: 'পিস', cost: [40, 900], markup: [1.35, 1.9],
   },
 };
 
@@ -72,11 +72,11 @@ async function main() {
   const suppliers = await q.all('SELECT id FROM suppliers ORDER BY id');
   const admin = await q.get("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1");
   if (!categories.length || !suppliers.length || !admin) {
-    throw new Error('Seed the database first — categories, suppliers and an admin must exist.');
+    throw new Error('আগে ডেটাবেসে প্রাথমিক তথ্য দিন — ক্যাটাগরি, সরবরাহকারী ও একজন অ্যাডমিন থাকতে হবে।');
   }
 
   const pools = categories.filter((c) => POOLS[c.name]);
-  if (!pools.length) throw new Error('No known category names found to generate for.');
+  if (!pools.length) throw new Error('পণ্য তৈরির মতো পরিচিত কোনো ক্যাটাগরির নাম পাওয়া যায়নি।');
 
   // Continue numbering after whatever is already there, per prefix.
   const next = {};
@@ -124,7 +124,7 @@ async function main() {
         await tx.run(
           `INSERT INTO stock_movements
              (product_id, type, quantity, before_qty, after_qty, unit_cost, reference, note, user_id)
-           VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'Opening stock', ?)`,
+           VALUES (?, 'in', ?, 0, ?, ?, 'OPENING', 'প্রারম্ভিক স্টক', ?)`,
           Number(lastInsertRowid), qty, qty, cost, admin.id
         );
       }
@@ -133,16 +133,16 @@ async function main() {
     return made;
   });
 
-  console.log(`Added ${created.length} products.`);
-  console.log(`  first: ${created[0].sku}  ${created[0].name}`);
-  console.log(`  last:  ${created.at(-1).sku}  ${created.at(-1).name}`);
+  console.log(`${created.length}টি পণ্য যোগ করা হয়েছে।`);
+  console.log(`  প্রথম: ${created[0].sku}  ${created[0].name}`);
+  console.log(`  শেষ:  ${created.at(-1).sku}  ${created.at(-1).name}`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     await main();
   } catch (err) {
-    console.error(`\nError: ${err.message}\n`);
+    console.error(`\nত্রুটি: ${err.message}\n`);
     process.exitCode = 1;
   } finally {
     await pool.end();

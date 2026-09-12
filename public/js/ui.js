@@ -3,18 +3,27 @@
 export const state = {
   user: null,
   settings: {
-    shop_name: 'My Shop',
+    shop_name: 'আমার দোকান',
     currency_symbol: '৳',
     number_locale: 'en-IN',
     tax_percent: '0',
   },
 };
 
+/** Roles are stored in English; these are what the shop reads. */
+export const ROLE_LABELS = {
+  admin:   'অ্যাডমিন',
+  manager: 'ম্যানেজার',
+  staff:   'কর্মী',
+};
+
+export const roleLabel = (role) => ROLE_LABELS[role] || role;
+
 /** Number-grouping choices offered in Settings. */
 export const NUMBER_LOCALES = [
-  ['en-IN', 'South Asian — 1,23,456.78 (lakh grouping)'],
-  ['en-US', 'Western — 123,456.78'],
-  ['bn-BD', 'Bengali digits — \u09e7,\u09e8\u09e9,\u09ea\u09eb\u09ec.\u09ed\u09ee'],
+  ['en-IN', 'দক্ষিণ এশীয় — 1,23,456.78 (লাখ হিসেবে)'],
+  ['en-US', 'পাশ্চাত্য — 123,456.78'],
+  ['bn-BD', 'বাংলা অঙ্ক — \u09e7,\u09e8\u09e9,\u09ea\u09eb\u09ec.\u09ed\u09ee'],
 ];
 
 /** Escape untrusted text before it goes into innerHTML. */
@@ -115,10 +124,10 @@ export function relative(value) {
   if (!value) return '';
   const d = new Date(String(value).replace(' ', 'T') + 'Z');
   const secs = (Date.now() - d.getTime()) / 1000;
-  if (secs < 60) return 'just now';
-  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
-  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
-  if (secs < 604800) return `${Math.floor(secs / 86400)}d ago`;
+  if (secs < 60) return 'এইমাত্র';
+  if (secs < 3600) return `${Math.floor(secs / 60)} মিনিট আগে`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)} ঘণ্টা আগে`;
+  if (secs < 604800) return `${Math.floor(secs / 86400)} দিন আগে`;
   return when(value, { withTime: false });
 }
 
@@ -134,17 +143,17 @@ export function daysAgoISO(n) {
 }
 
 export function stockBadge(product) {
-  if (product.quantity <= 0) return '<span class="badge badge-danger">Out of stock</span>';
-  if (product.quantity <= product.reorder_level) return '<span class="badge badge-warn">Low stock</span>';
-  return '<span class="badge badge-ok">In stock</span>';
+  if (product.quantity <= 0) return '<span class="badge badge-danger">স্টক শেষ</span>';
+  if (product.quantity <= product.reorder_level) return '<span class="badge badge-warn">স্টক কম</span>';
+  return '<span class="badge badge-ok">স্টকে আছে</span>';
 }
 
 const MOVEMENT_LABELS = {
-  in:     ['badge-ok', 'Stock in'],
-  out:    ['badge-danger', 'Stock out'],
-  adjust: ['badge-info', 'Adjustment'],
-  sale:   ['badge-muted', 'Sale'],
-  return: ['badge-info', 'Return'],
+  in:     ['badge-ok', 'স্টক গ্রহণ'],
+  out:    ['badge-danger', 'স্টক হ্রাস'],
+  adjust: ['badge-info', 'সমন্বয়'],
+  sale:   ['badge-muted', 'বিক্রয়'],
+  return: ['badge-info', 'ফেরত'],
 };
 
 export function movementBadge(type) {
@@ -194,7 +203,7 @@ export function modal({ title, body, footer = '', large = false, onMount }) {
     <div class="modal ${large ? 'modal-lg' : ''}" role="dialog" aria-modal="true">
       <div class="modal-head">
         <h2>${esc(title)}</h2>
-        <button class="icon-btn" data-close aria-label="Close">×</button>
+        <button class="icon-btn" data-close aria-label="বন্ধ করুন">×</button>
       </div>
       <div class="modal-body">${body}</div>
       ${footer ? `<div class="modal-foot">${footer}</div>` : ''}
@@ -224,7 +233,7 @@ export function closeModal() {
 }
 
 /** Promise-based confirm dialog. */
-export function confirmDialog({ title, message, confirmLabel = 'Confirm', danger = false }) {
+export function confirmDialog({ title, message, confirmLabel = 'নিশ্চিত করুন', danger = false }) {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
@@ -233,7 +242,7 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirm', danger
       title,
       body: `<p style="margin:0;line-height:1.55">${message}</p>`,
       footer: `
-        <button class="btn" data-cancel>Cancel</button>
+        <button class="btn" data-cancel>বাতিল</button>
         <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-ok>${esc(confirmLabel)}</button>`,
       onMount: (el) => {
         el.querySelector('[data-ok]').addEventListener('click', () => { finish(true); close(); });
@@ -250,7 +259,7 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirm', danger
 }
 
 /* -------------------------------------------------------------- fragments */
-export const loading = () => '<div class="loading">Loading…</div>';
+export const loading = () => '<div class="loading">লোড হচ্ছে…</div>';
 
 export function empty(message, icon = '🗒') {
   return `<div class="empty"><div class="empty-icon">${icon}</div><p>${esc(message)}</p></div>`;
@@ -272,7 +281,7 @@ export function formData(form) {
 
 /** Simple bar chart as inline SVG — no chart library needed. */
 export function barChart(points, { valueKey = 'revenue', labelKey = 'day', format = money } = {}) {
-  if (!points.length) return empty('No data yet', '📈');
+  if (!points.length) return empty('এখনও কোনো তথ্য নেই', '📈');
 
   const W = 100, H = 40, pad = 1;
   const max = Math.max(...points.map((p) => Number(p[valueKey]) || 0), 1);
@@ -297,11 +306,11 @@ export function barChart(points, { valueKey = 'revenue', labelKey = 'day', forma
 
   return `
     <svg class="chart" viewBox="0 0 ${W} ${H + 6}" preserveAspectRatio="none" role="img"
-         aria-label="Chart of ${esc(valueKey)} over time">
+         aria-label="সময় অনুযায়ী ${esc(valueKey)}-এর চার্ট">
       ${bars}
       <line class="axis" x1="0" y1="${H}" x2="${W}" y2="${H}" vector-effect="non-scaling-stroke" />
     </svg>
     <div class="small muted" style="display:flex;justify-content:space-between;margin-top:4px">
-      <span>${esc(first)}</span><span>Peak ${format(max)}</span><span>${esc(last)}</span>
+      <span>${esc(first)}</span><span>সর্বোচ্চ ${format(max)}</span><span>${esc(last)}</span>
     </div>`;
 }

@@ -44,14 +44,14 @@ export function cookieOptions() {
 /** Populates req.user from the session cookie, or 401s. */
 export async function requireAuth(req, res, next) {
   const token = req.cookies?.[COOKIE_NAME];
-  if (!token) return res.status(401).json({ error: 'Not signed in' });
+  if (!token) return res.status(401).json({ error: 'আপনি সাইন ইন করেননি' });
 
   let payload;
   try {
     payload = jwt.verify(token, SECRET);
   } catch {
     res.clearCookie(COOKIE_NAME);
-    return res.status(401).json({ error: 'Session expired, please sign in again' });
+    return res.status(401).json({ error: 'সেশনের মেয়াদ শেষ, অনুগ্রহ করে আবার সাইন ইন করুন' });
   }
 
   // Re-read the user each request so a deactivated account loses access
@@ -71,7 +71,7 @@ export async function requireAuth(req, res, next) {
 
   if (!user || !user.active) {
     res.clearCookie(COOKIE_NAME);
-    return res.status(401).json({ error: 'Account is no longer active' });
+    return res.status(401).json({ error: 'অ্যাকাউন্টটি আর সক্রিয় নেই' });
   }
 
   req.user = user;
@@ -81,9 +81,9 @@ export async function requireAuth(req, res, next) {
 /** Route guard: requireRole('admin') or requireRole('admin', 'manager'). */
 export function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ error: 'Not signed in' });
+    if (!req.user) return res.status(401).json({ error: 'আপনি সাইন ইন করেননি' });
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'You do not have permission to do that' });
+      return res.status(403).json({ error: 'এই কাজটি করার অনুমতি আপনার নেই' });
     }
     next();
   };

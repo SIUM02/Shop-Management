@@ -16,8 +16,8 @@ const router = express.Router();
 router.post(
   '/login',
   wrap(async (req, res) => {
-    const username = str(req.body.username, { field: 'Username', required: true, max: 60 });
-    const password = str(req.body.password, { field: 'Password', required: true, max: 200 });
+    const username = str(req.body.username, { field: 'ইউজারনেম', required: true, max: 60 });
+    const password = str(req.body.password, { field: 'পাসওয়ার্ড', required: true, max: 200 });
 
     // Refuse before touching the password hash, so a locked-out attacker
     // gets no timing signal and burns no CPU on scrypt.
@@ -26,7 +26,7 @@ router.post(
       res.setHeader('Retry-After', String(limit.retryAfterSeconds));
       throw new HttpError(
         429,
-        `Too many failed sign-in attempts. Try again in ${Math.ceil(limit.retryAfterSeconds / 60)} minute(s).`
+        `অনেকবার ভুল সাইন ইন চেষ্টা হয়েছে। ${Math.ceil(limit.retryAfterSeconds / 60)} মিনিট পর আবার চেষ্টা করুন।`
       );
     }
 
@@ -35,9 +35,9 @@ router.post(
     // Same message either way so the form can't be used to enumerate usernames.
     if (!user || !verifyPassword(password, user.password_hash)) {
       for (const key of limit.keys) recordFailure(key);
-      throw new HttpError(401, 'Incorrect username or password');
+      throw new HttpError(401, 'ইউজারনেম বা পাসওয়ার্ড ভুল');
     }
-    if (!user.active) throw new HttpError(403, 'This account has been deactivated');
+    if (!user.active) throw new HttpError(403, 'এই অ্যাকাউন্টটি নিষ্ক্রিয় করা হয়েছে');
 
     for (const key of limit.keys) clearFailures(key);
     res.cookie(COOKIE_NAME, issueToken(user), cookieOptions());
@@ -65,13 +65,13 @@ router.post(
   '/change-password',
   requireAuth,
   wrap(async (req, res) => {
-    const current = str(req.body.current_password, { field: 'Current password', required: true, max: 200 });
-    const next = str(req.body.new_password, { field: 'New password', required: true, max: 200 });
-    if (next.length < 8) throw new HttpError(400, 'New password must be at least 8 characters');
+    const current = str(req.body.current_password, { field: 'বর্তমান পাসওয়ার্ড', required: true, max: 200 });
+    const next = str(req.body.new_password, { field: 'নতুন পাসওয়ার্ড', required: true, max: 200 });
+    if (next.length < 8) throw new HttpError(400, 'নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে');
 
     const row = await q.get('SELECT password_hash FROM users WHERE id = ?', req.user.id);
     if (!verifyPassword(current, row.password_hash)) {
-      throw new HttpError(400, 'Current password is incorrect');
+      throw new HttpError(400, 'বর্তমান পাসওয়ার্ড ভুল');
     }
 
     await q.run('UPDATE users SET password_hash = ? WHERE id = ?', hashPassword(next), req.user.id);

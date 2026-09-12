@@ -4,13 +4,23 @@ import { empty, esc, formData, int, modal, money, seesProfit, state, toast, when
 /** Cart lives at module scope so switching pages and back keeps it. */
 const cart = [];
 
+/** Payment methods are stored in English; these are what the shop reads. */
+export const PAYMENT_LABELS = {
+  cash:   'নগদ',
+  card:   'কার্ড',
+  mobile: 'মোবাইল ব্যাংকিং',
+  credit: 'বাকি',
+};
+
+export const paymentLabel = (method) => PAYMENT_LABELS[method] || method;
+
 export async function render(root, ctx) {
-  ctx.setActions('<button class="btn" id="clear-cart">Clear cart</button>');
+  ctx.setActions('<button class="btn" id="clear-cart">কার্ট খালি করুন</button>');
   document.getElementById('clear-cart').addEventListener('click', () => {
     if (!cart.length) return;
     cart.length = 0;
     paint(root, ctx);
-    toast('Cart cleared');
+    toast('কার্ট খালি করা হয়েছে');
   });
 
   root.innerHTML = `
@@ -18,11 +28,11 @@ export async function render(root, ctx) {
       <div>
         <div class="card">
           <div class="card-head">
-            <h2>Find products</h2>
-            <span class="sub">Scan a barcode or type a name</span>
+            <h2>পণ্য খুঁজুন</h2>
+            <span class="sub">বারকোড স্ক্যান করুন বা নাম লিখুন</span>
           </div>
           <div class="card-body">
-            <input id="pos-search" type="search" placeholder="Scan barcode, or search by name / SKU…" autofocus />
+            <input id="pos-search" type="search" placeholder="বারকোড স্ক্যান করুন, বা নাম / SKU দিয়ে খুঁজুন…" autofocus />
           </div>
           <div class="card-body tight pos-results" id="pos-results"></div>
         </div>
@@ -64,7 +74,7 @@ async function searchProducts(root, ctx, term) {
 
   const { items } = await api.products({ search: term, limit: 40, sort: 'name' });
   if (!items.length) {
-    box.innerHTML = empty(term ? `Nothing matches "${term}"` : 'No products available', '🔍');
+    box.innerHTML = empty(term ? `"${term}" এর সাথে কিছু মেলেনি` : 'কোনো পণ্য নেই', '🔍');
     return;
   }
 
@@ -72,11 +82,11 @@ async function searchProducts(root, ctx, term) {
     <div class="pos-pick ${p.quantity <= 0 ? 'disabled' : ''}" data-id="${p.id}">
       <div class="pos-pick-main">
         <div class="cell-main">${esc(p.name)}</div>
-        <div class="cell-sub mono">${esc(p.sku)} · ${int(p.quantity)} ${esc(p.unit)} in stock</div>
+        <div class="cell-sub mono">${esc(p.sku)} · স্টকে ${int(p.quantity)} ${esc(p.unit)}</div>
       </div>
       <div class="num">
         <strong>${money(p.sell_price)}</strong>
-        ${p.quantity <= 0 ? '<div class="small text-danger">Out of stock</div>' : ''}
+        ${p.quantity <= 0 ? '<div class="small text-danger">স্টক শেষ</div>' : ''}
       </div>
     </div>`).join('');
 
@@ -93,11 +103,11 @@ function addToCart(product, root, ctx) {
 
   if (line) {
     if (line.quantity + 1 > product.quantity) {
-      return toast(`Only ${product.quantity} ${product.unit} of ${product.name} in stock`, 'error');
+      return toast(`${product.name} এর স্টকে আছে মাত্র ${product.quantity} ${product.unit}`, 'error');
     }
     line.quantity += 1;
   } else {
-    if (product.quantity <= 0) return toast(`${product.name} is out of stock`, 'error');
+    if (product.quantity <= 0) return toast(`${product.name} এর স্টক শেষ`, 'error');
     cart.push({
       product_id: product.id,
       name: product.name,
@@ -157,66 +167,66 @@ function paint(root, ctx) {
 
   card.innerHTML = `
     <div class="card-head">
-      <h2>Current sale</h2>
-      <span class="sub">${cart.length} line${cart.length === 1 ? '' : 's'}</span>
+      <h2>চলতি বিক্রয়</h2>
+      <span class="sub">${cart.length}টি লাইন</span>
     </div>
     <div class="card-body">
       ${cart.length ? cart.map((l, i) => `
         <div class="pos-cart-line">
           <div>
             <div class="cell-main">${esc(l.name)}</div>
-            <div class="cell-sub mono">${esc(l.sku)} · ${money(l.unit_price)} each</div>
+            <div class="cell-sub mono">${esc(l.sku)} · প্রতিটি ${money(l.unit_price)}</div>
             <div class="qty-box">
               <button class="qty-btn" data-dec="${i}">−</button>
               <input type="number" min="1" max="${l.available}" value="${l.quantity}" data-qty="${i}" />
               <button class="qty-btn" data-inc="${i}">+</button>
-              <span class="small muted">of ${int(l.available)}</span>
+              <span class="small muted">${int(l.available)} এর মধ্যে</span>
             </div>
           </div>
           <div class="num">
             <strong>${money(l.unit_price * l.quantity)}</strong>
-            <div><button class="btn btn-sm" data-del="${i}" style="margin-top:6px">Remove</button></div>
+            <div><button class="btn btn-sm" data-del="${i}" style="margin-top:6px">সরান</button></div>
           </div>
-        </div>`).join('') : empty('Cart is empty — search or scan to add items', '🛒')}
+        </div>`).join('') : empty('কার্ট খালি — পণ্য যোগ করতে খুঁজুন বা স্ক্যান করুন', '🛒')}
 
       ${cart.length ? `
         <div class="totals">
           <div class="form-grid">
             <label class="field">
-              <span>Discount</span>
+              <span>ছাড়</span>
               <input id="pos-discount" type="number" step="0.01" min="0" value="${esc(prev.discount)}" />
             </label>
             <label class="field">
-              <span>Tax %</span>
+              <span>কর %</span>
               <input id="pos-tax" type="number" step="0.01" min="0" max="100" value="${esc(prev.tax)}" />
             </label>
             <label class="field">
-              <span>Customer name</span>
-              <input id="pos-customer" maxlength="120" value="${esc(prev.customer)}" placeholder="Walk-in" />
+              <span>ক্রেতার নাম</span>
+              <input id="pos-customer" maxlength="120" value="${esc(prev.customer)}" placeholder="সাধারণ ক্রেতা" />
             </label>
             <label class="field">
-              <span>Phone</span>
+              <span>ফোন</span>
               <input id="pos-phone" maxlength="40" value="${esc(prev.phone)}" />
             </label>
             <label class="field span-2">
-              <span>Payment method</span>
+              <span>পরিশোধের মাধ্যম</span>
               <select id="pos-payment">
                 ${['cash', 'card', 'mobile', 'credit'].map((m) =>
-                  `<option value="${m}" ${prev.payment === m ? 'selected' : ''}>${m[0].toUpperCase() + m.slice(1)}</option>`).join('')}
+                  `<option value="${m}" ${prev.payment === m ? 'selected' : ''}>${PAYMENT_LABELS[m]}</option>`).join('')}
               </select>
             </label>
           </div>
 
-          <div class="total-row"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
-          <div class="total-row"><span>Discount</span><span>−${money(t.discount)}</span></div>
-          <div class="total-row"><span>Tax (${t.taxPercent}%)</span><span>${money(t.tax)}</span></div>
-          <div class="total-row grand"><span>Total</span><span>${money(t.total)}</span></div>
+          <div class="total-row"><span>উপমোট</span><span>${money(t.subtotal)}</span></div>
+          <div class="total-row"><span>ছাড়</span><span>−${money(t.discount)}</span></div>
+          <div class="total-row"><span>কর (${t.taxPercent}%)</span><span>${money(t.tax)}</span></div>
+          <div class="total-row grand"><span>সর্বমোট</span><span>${money(t.total)}</span></div>
           ${seesProfit() && t.profit !== null ? `
             <div class="pos-profit" id="pos-profit">
-              <div class="profit-head">Owner only</div>
-              <div class="total-row"><span>Cost of goods</span><span id="t-cost">${money(t.cost)}</span></div>
+              <div class="profit-head">শুধু মালিকের জন্য</div>
+              <div class="total-row"><span>পণ্যের ক্রয়মূল্য</span><span id="t-cost">${money(t.cost)}</span></div>
               <div class="total-row profit-line">
-                <span>Profit on this sale</span>
+                <span>এই বিক্রয়ে লাভ</span>
                 <span id="t-profit" class="${t.profit >= 0 ? 'text-ok' : 'text-danger'}">
                   ${money(t.profit)}${t.margin === null ? '' : ` · ${t.margin.toFixed(1)}%`}
                 </span>
@@ -224,7 +234,7 @@ function paint(root, ctx) {
             </div>` : ''}
 
           <button class="btn btn-primary btn-block" id="checkout" style="margin-top:14px;padding:12px">
-            Complete sale · ${money(t.total)}
+            বিক্রয় সম্পন্ন করুন · ${money(t.total)}
           </button>
         </div>` : ''}
     </div>`;
@@ -235,7 +245,7 @@ function paint(root, ctx) {
   card.querySelectorAll('[data-inc]').forEach((b) =>
     b.addEventListener('click', () => {
       const l = cart[Number(b.dataset.inc)];
-      if (l.quantity + 1 > l.available) return toast(`Only ${l.available} in stock`, 'error');
+      if (l.quantity + 1 > l.available) return toast(`স্টকে আছে মাত্র ${l.available}টি`, 'error');
       l.quantity += 1;
       paint(root, ctx);
     }));
@@ -252,7 +262,7 @@ function paint(root, ctx) {
     input.addEventListener('change', () => {
       const l = cart[Number(input.dataset.qty)];
       const n = Math.max(1, Math.min(Number(input.value) || 1, l.available));
-      if (n !== Number(input.value)) toast(`Adjusted to the ${l.available} available`, 'error');
+      if (n !== Number(input.value)) toast(`স্টকে থাকা ${l.available}টিতে সমন্বয় করা হয়েছে`, 'error');
       l.quantity = n;
       paint(root, ctx);
     }));
@@ -264,10 +274,10 @@ function paint(root, ctx) {
       const rows = card.querySelectorAll('.total-row');
       rows[0].lastElementChild.textContent = money(u.subtotal);
       rows[1].lastElementChild.textContent = '−' + money(u.discount);
-      rows[2].firstElementChild.textContent = `Tax (${u.taxPercent}%)`;
+      rows[2].firstElementChild.textContent = `কর (${u.taxPercent}%)`;
       rows[2].lastElementChild.textContent = money(u.tax);
       rows[3].lastElementChild.textContent = money(u.total);
-      card.querySelector('#checkout').textContent = `Complete sale · ${money(u.total)}`;
+      card.querySelector('#checkout').textContent = `বিক্রয় সম্পন্ন করুন · ${money(u.total)}`;
 
       // The owner-only figures move with the discount, so refresh them too.
       const costEl = card.querySelector('#t-cost');
@@ -289,7 +299,7 @@ async function checkout(root, ctx) {
   const t = totals();
 
   btn.disabled = true;
-  btn.textContent = 'Processing…';
+  btn.textContent = 'প্রক্রিয়াধীন…';
 
   try {
     const sale = await api.createSale({
@@ -307,12 +317,12 @@ async function checkout(root, ctx) {
 
     cart.length = 0;
     showReceipt(sale);
-    toast(`Sale ${sale.invoice_no} completed`);
+    toast(`বিক্রয় ${sale.invoice_no} সম্পন্ন হয়েছে`);
     await render(root, ctx);
   } catch (err) {
     toast(err.message, 'error');
     btn.disabled = false;
-    btn.textContent = `Complete sale · ${money(t.total)}`;
+    btn.textContent = `বিক্রয় সম্পন্ন করুন · ${money(t.total)}`;
   }
 }
 
@@ -329,14 +339,14 @@ function profitPanel(sale) {
   const tone = sale.profit >= 0 ? 'text-ok' : 'text-danger';
   return `
     <div class="profit-panel no-print">
-      <div class="profit-head">Owner only · not shown on the customer receipt</div>
+      <div class="profit-head">শুধু মালিকের জন্য · ক্রেতার রসিদে দেখানো হয় না</div>
       <div class="profit-figures">
         <div>
-          <span class="profit-label">Profit</span>
+          <span class="profit-label">লাভ</span>
           <strong class="${tone}">${money(sale.profit)}</strong>
         </div>
         <div>
-          <span class="profit-label">Margin</span>
+          <span class="profit-label">মার্জিন</span>
           <strong class="${tone}">${int(sale.margin_percent)}%</strong>
         </div>
       </div>
@@ -345,17 +355,17 @@ function profitPanel(sale) {
 
 export function showReceipt(sale) {
   modal({
-    title: `Receipt · ${sale.invoice_no}`,
+    title: `রসিদ · ${sale.invoice_no}`,
     body: `
       <div class="receipt">
         <div class="receipt-head">
           <h3>${esc(state.settings.shop_name)}</h3>
           <div>${esc(sale.invoice_no)}</div>
           <div>${esc(when(sale.created_at))}</div>
-          ${sale.customer_name ? `<div>Customer: ${esc(sale.customer_name)}</div>` : ''}
+          ${sale.customer_name ? `<div>ক্রেতা: ${esc(sale.customer_name)}</div>` : ''}
         </div>
         <table>
-          <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr></thead>
+          <thead><tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">মোট</th></tr></thead>
           <tbody>${(sale.items || []).map((i) => `
             <tr>
               <td>${esc(i.product_name)}</td>
@@ -365,18 +375,18 @@ export function showReceipt(sale) {
             </tr>`).join('')}</tbody>
         </table>
         <div class="totals">
-          <div class="total-row"><span>Subtotal</span><span>${money(sale.subtotal)}</span></div>
-          ${sale.discount ? `<div class="total-row"><span>Discount</span><span>−${money(sale.discount)}</span></div>` : ''}
-          ${sale.tax ? `<div class="total-row"><span>Tax</span><span>${money(sale.tax)}</span></div>` : ''}
-          <div class="total-row grand"><span>Total</span><span>${money(sale.total)}</span></div>
-          <div class="total-row"><span>Paid by</span><span>${esc(sale.payment_method)}</span></div>
+          <div class="total-row"><span>উপমোট</span><span>${money(sale.subtotal)}</span></div>
+          ${sale.discount ? `<div class="total-row"><span>ছাড়</span><span>−${money(sale.discount)}</span></div>` : ''}
+          ${sale.tax ? `<div class="total-row"><span>কর</span><span>${money(sale.tax)}</span></div>` : ''}
+          <div class="total-row grand"><span>সর্বমোট</span><span>${money(sale.total)}</span></div>
+          <div class="total-row"><span>পরিশোধ</span><span>${esc(paymentLabel(sale.payment_method))}</span></div>
         </div>
         ${profitPanel(sale)}
-        <p style="text-align:center;margin-top:18px">Thank you for your purchase!</p>
+        <p style="text-align:center;margin-top:18px">আপনার কেনাকাটার জন্য ধন্যবাদ!</p>
       </div>`,
     footer: `
-      <button class="btn" data-close>Close</button>
-      <button class="btn btn-primary" id="print-btn">Print</button>`,
+      <button class="btn" data-close>বন্ধ</button>
+      <button class="btn btn-primary" id="print-btn">প্রিন্ট</button>`,
     onMount: (el) => {
       el.querySelector('#print-btn').addEventListener('click', () => window.print());
     },

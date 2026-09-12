@@ -1,43 +1,43 @@
 import { api } from '../api.js';
-import { confirmDialog, empty, esc, formData, modal, state, toast, when } from '../ui.js';
+import { ROLE_LABELS, confirmDialog, empty, esc, formData, modal, roleLabel, state, toast, when } from '../ui.js';
 
 const ROLE_HELP = {
-  admin:   'Full access, including users and settings',
-  manager: 'Everything except user management',
-  staff:   'Sales and stock movements only',
+  admin:   'সবকিছুতে প্রবেশাধিকার, ব্যবহারকারী ও সেটিংসসহ',
+  manager: 'ব্যবহারকারী ব্যবস্থাপনা ছাড়া সবকিছু',
+  staff:   'শুধু বিক্রয় ও স্টক লেনদেন',
 };
 
 export async function render(root, ctx) {
   const rows = await api.users();
 
-  ctx.setActions('<button class="btn btn-primary" id="add-btn">＋ Add User</button>')
+  ctx.setActions('<button class="btn btn-primary" id="add-btn">＋ ব্যবহারকারী যোগ করুন</button>')
     .querySelector('#add-btn')
     .addEventListener('click', () => openForm(null, ctx));
 
   root.innerHTML = `
     <div class="alert alert-info">
-      <strong>Roles:</strong>
-      Admin — ${ROLE_HELP.admin}. ·
-      Manager — ${ROLE_HELP.manager}. ·
-      Staff — ${ROLE_HELP.staff}.
+      <strong>ভূমিকা:</strong>
+      ${ROLE_LABELS.admin} — ${ROLE_HELP.admin}। ·
+      ${ROLE_LABELS.manager} — ${ROLE_HELP.manager}। ·
+      ${ROLE_LABELS.staff} — ${ROLE_HELP.staff}।
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Users</h2><span class="sub">${rows.length} total</span></div>
+      <div class="card-head"><h2>ব্যবহারকারী</h2><span class="sub">মোট ${rows.length} জন</span></div>
       <div class="card-body tight"><div class="table-wrap"><table>
-        <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <thead><tr><th>ব্যবহারকারী</th><th>ভূমিকা</th><th>অবস্থা</th><th>তৈরি</th><th></th></tr></thead>
         <tbody>${rows.map((u) => `
           <tr>
             <td>
               <div class="cell-main">${esc(u.full_name || u.username)}</div>
-              <div class="cell-sub mono">${esc(u.username)}${u.id === state.user.id ? ' · you' : ''}</div>
+              <div class="cell-sub mono">${esc(u.username)}${u.id === state.user.id ? ' · আপনি' : ''}</div>
             </td>
-            <td><span class="badge ${u.role === 'admin' ? 'badge-info' : 'badge-muted'}">${esc(u.role)}</span></td>
+            <td><span class="badge ${u.role === 'admin' ? 'badge-info' : 'badge-muted'}">${esc(roleLabel(u.role))}</span></td>
             <td>${u.active
-              ? '<span class="badge badge-ok">Active</span>'
-              : '<span class="badge badge-danger">Disabled</span>'}</td>
+              ? '<span class="badge badge-ok">সক্রিয়</span>'
+              : '<span class="badge badge-danger">নিষ্ক্রিয়</span>'}</td>
             <td class="small muted">${esc(when(u.created_at, { withTime: false }))}</td>
-            <td><div class="row-actions"><button class="btn btn-sm" data-edit="${u.id}">Edit</button></div></td>
+            <td><div class="row-actions"><button class="btn btn-sm" data-edit="${u.id}">সম্পাদনা</button></div></td>
           </tr>`).join('')}</tbody>
       </table></div></div>
     </div>`;
@@ -52,43 +52,43 @@ function openForm(user, ctx) {
   const isSelf = isEdit && u.id === state.user.id;
 
   modal({
-    title: isEdit ? `Edit ${u.username}` : 'Add User',
+    title: isEdit ? `${u.username} সম্পাদনা` : 'ব্যবহারকারী যোগ করুন',
     body: `
       <form id="user-form">
         <div class="form-grid">
           <label class="field">
-            <span>Username *</span>
+            <span>ইউজারনেম *</span>
             <input name="username" required maxlength="60" value="${esc(u.username || '')}"
                    ${isEdit ? 'disabled' : ''} pattern="[a-zA-Z0-9._-]+" />
           </label>
           <label class="field">
-            <span>Full name</span>
+            <span>পুরো নাম</span>
             <input name="full_name" maxlength="120" value="${esc(u.full_name || '')}" />
           </label>
           <label class="field span-2">
-            <span>Role *</span>
+            <span>ভূমিকা *</span>
             <select name="role" ${isSelf ? 'disabled' : ''}>
               ${Object.entries(ROLE_HELP).map(([r, help]) =>
-                `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r[0].toUpperCase() + r.slice(1)} — ${help}</option>`).join('')}
+                `<option value="${r}" ${u.role === r ? 'selected' : ''}>${roleLabel(r)} — ${help}</option>`).join('')}
             </select>
           </label>
           <label class="field span-2">
-            <span>${isEdit ? 'New password <span class="hint">leave blank to keep the current one</span>' : 'Password * <span class="hint">at least 8 characters</span>'}</span>
+            <span>${isEdit ? 'নতুন পাসওয়ার্ড <span class="hint">বর্তমানটি রাখতে ফাঁকা রাখুন</span>' : 'পাসওয়ার্ড * <span class="hint">কমপক্ষে ৮ অক্ষর</span>'}</span>
             <input name="${isEdit ? 'new_password' : 'password'}" type="password"
                    ${isEdit ? '' : 'required'} minlength="8" maxlength="200" autocomplete="new-password" />
           </label>
         </div>
         ${isEdit && !isSelf ? `<label class="check">
           <input type="checkbox" name="active" ${u.active ? 'checked' : ''} />
-          <span>Active — uncheck to block this user from signing in</span>
+          <span>সক্রিয় — টিক তুলে দিলে এই ব্যবহারকারী সাইন ইন করতে পারবেন না</span>
         </label>` : ''}
-        ${isSelf ? '<div class="alert alert-info">You cannot change your own role or disable your own account.</div>' : ''}
+        ${isSelf ? '<div class="alert alert-info">আপনি নিজের ভূমিকা বদলাতে বা নিজের অ্যাকাউন্ট নিষ্ক্রিয় করতে পারবেন না।</div>' : ''}
         <div id="user-error"></div>
       </form>`,
     footer: `
-      <button class="btn" data-close>Cancel</button>
-      ${isEdit && !isSelf ? '<button class="btn btn-danger" id="del-btn">Delete</button>' : ''}
-      <button class="btn btn-primary" id="save-btn">${isEdit ? 'Save' : 'Add user'}</button>`,
+      <button class="btn" data-close>বাতিল</button>
+      ${isEdit && !isSelf ? '<button class="btn btn-danger" id="del-btn">মুছে ফেলুন</button>' : ''}
+      <button class="btn btn-primary" id="save-btn">${isEdit ? 'সংরক্ষণ' : 'ব্যবহারকারী যোগ করুন'}</button>`,
     onMount: (el, close) => {
       const form = el.querySelector('#user-form');
       const errBox = el.querySelector('#user-error');
@@ -108,7 +108,7 @@ function openForm(user, ctx) {
           } else {
             await api.createUser(data);
           }
-          toast(isEdit ? 'User updated' : `User "${data.username}" created`);
+          toast(isEdit ? 'ব্যবহারকারী হালনাগাদ হয়েছে' : `"${data.username}" ব্যবহারকারী তৈরি হয়েছে`);
           close();
           ctx.refresh();
         } catch (err) {
@@ -122,15 +122,15 @@ function openForm(user, ctx) {
 
       el.querySelector('#del-btn')?.addEventListener('click', async () => {
         const ok = await confirmDialog({
-          title: 'Delete user?',
-          message: `Delete <strong>${esc(u.username)}</strong>? Their past sales and stock records stay, but stop showing a user name.`,
-          confirmLabel: 'Delete',
+          title: 'ব্যবহারকারী মুছে ফেলবেন?',
+          message: `<strong>${esc(u.username)}</strong> মুছে ফেলবেন? তাদের পুরনো বিক্রয় ও স্টকের নথি থেকে যাবে, তবে ব্যবহারকারীর নাম আর দেখাবে না।`,
+          confirmLabel: 'মুছে ফেলুন',
           danger: true,
         });
         if (!ok) return;
         try {
           await api.deleteUser(u.id);
-          toast('User deleted');
+          toast('ব্যবহারকারী মুছে ফেলা হয়েছে');
           close();
           ctx.refresh();
         } catch (err) {

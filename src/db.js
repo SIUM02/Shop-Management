@@ -22,7 +22,7 @@ types.setTypeParser(1082, (v) => v);
 const connectionString = process.env.DATABASE_URL || '';
 if (!connectionString) {
   throw new Error(
-    'DATABASE_URL is not set. Copy .env.example to .env and point it at your Postgres database.'
+    'DATABASE_URL সেট করা নেই। .env.example কপি করে .env বানিয়ে আপনার Postgres ডেটাবেসের ঠিকানা দিন।'
   );
 }
 
@@ -176,7 +176,7 @@ const TZ = process.env.SHOP_TZ || 'Asia/Dhaka';
 // The zone name is baked into a function body rather than passed as a query
 // parameter, so it is validated as an IANA-shaped name before it gets there.
 if (!/^[A-Za-z][A-Za-z0-9+_-]*(\/[A-Za-z0-9+_-]+){0,2}$/.test(TZ)) {
-  throw new Error(`SHOP_TZ is not a valid timezone name: ${TZ}`);
+  throw new Error(`SHOP_TZ একটি বৈধ টাইমজোনের নাম নয়: ${TZ}`);
 }
 
 const TIME_HELPERS = `
@@ -328,7 +328,7 @@ FOR EACH ROW EXECUTE FUNCTION trg_products_touch();
 `;
 
 const DEFAULT_SETTINGS = {
-  shop_name: 'My Shop',
+  shop_name: 'আমার দোকান',
   currency_symbol: '৳',
   // en-IN gives South-Asian lakh/crore grouping with Latin digits (1,23,456.78),
   // which is how amounts are written in Bangladesh. See NUMBER_LOCALES.

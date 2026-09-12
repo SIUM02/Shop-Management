@@ -2,15 +2,15 @@ import { api } from '../api.js';
 import {
   canEdit, confirmDialog, empty, esc, int, loading, modal, money, toast, when,
 } from '../ui.js';
-import { showReceipt } from './pos.js';
+import { paymentLabel, showReceipt } from './pos.js';
 
 const filters = { search: '', from: '', to: '', status: '', offset: 0 };
 const PAGE = 50;
 
 export async function render(root, ctx) {
   const actions = ctx.setActions(`
-    <button class="btn" id="export-btn">Export CSV</button>
-    <button class="btn btn-primary" id="new-sale">＋ New Sale</button>
+    <button class="btn" id="export-btn">CSV এক্সপোর্ট</button>
+    <button class="btn btn-primary" id="new-sale">＋ নতুন বিক্রয়</button>
   `);
   actions.querySelector('#export-btn').addEventListener('click', () => {
     window.location.href = '/api/reports/export/sales';
@@ -19,15 +19,15 @@ export async function render(root, ctx) {
 
   root.innerHTML = `
     <div class="toolbar">
-      <input class="search" id="f-search" type="search" placeholder="Search invoice or customer…" value="${esc(filters.search)}" />
-      <input id="f-from" type="date" value="${esc(filters.from)}" title="From date" />
-      <input id="f-to"   type="date" value="${esc(filters.to)}" title="To date" />
+      <input class="search" id="f-search" type="search" placeholder="চালান বা ক্রেতা খুঁজুন…" value="${esc(filters.search)}" />
+      <input id="f-from" type="date" value="${esc(filters.from)}" title="শুরুর তারিখ" />
+      <input id="f-to"   type="date" value="${esc(filters.to)}" title="শেষ তারিখ" />
       <select id="f-status">
-        <option value="">All invoices</option>
-        <option value="completed" ${filters.status === 'completed' ? 'selected' : ''}>Completed</option>
-        <option value="voided"    ${filters.status === 'voided' ? 'selected' : ''}>Voided</option>
+        <option value="">সব চালান</option>
+        <option value="completed" ${filters.status === 'completed' ? 'selected' : ''}>সম্পন্ন</option>
+        <option value="voided"    ${filters.status === 'voided' ? 'selected' : ''}>বাতিল</option>
       </select>
-      <button class="btn btn-sm" id="f-clear">Clear</button>
+      <button class="btn btn-sm" id="f-clear">মুছুন</button>
     </div>
     <div class="card"><div class="card-body tight" id="list">${loading()}</div></div>`;
 
@@ -62,7 +62,7 @@ async function load(root, ctx) {
   box.innerHTML = loading();
 
   const { items, total } = await api.sales({ ...filters, limit: PAGE });
-  if (!items.length) return void (box.innerHTML = empty('No sales match these filters', '🧾'));
+  if (!items.length) return void (box.innerHTML = empty('এই ফিল্টারে কোনো বিক্রয় মেলেনি', '🧾'));
 
   const completed = items.filter((s) => s.status === 'completed');
   const pageRevenue = completed.reduce((a, s) => a + s.total, 0);
@@ -70,34 +70,34 @@ async function load(root, ctx) {
   box.innerHTML = `
     <div class="table-wrap"><table>
       <thead><tr>
-        <th>Invoice</th><th>When</th><th>Customer</th>
-        <th class="num">Items</th><th class="num">Total</th>
-        <th>Payment</th><th>Status</th><th>By</th>
+        <th>চালান</th><th>কখন</th><th>ক্রেতা</th>
+        <th class="num">পণ্য</th><th class="num">মোট</th>
+        <th>পরিশোধ</th><th>অবস্থা</th><th>কে করেছেন</th>
       </tr></thead>
       <tbody>${items.map((s) => `
         <tr class="clickable" data-id="${s.id}">
           <td class="mono">${esc(s.invoice_no)}</td>
           <td class="small nowrap">${esc(when(s.created_at))}</td>
-          <td>${esc(s.customer_name || 'Walk-in')}</td>
+          <td>${esc(s.customer_name || 'সাধারণ ক্রেতা')}</td>
           <td class="num">${int(s.item_count)}</td>
           <td class="num"><strong>${money(s.total)}</strong></td>
-          <td class="small" style="text-transform:capitalize">${esc(s.payment_method)}</td>
+          <td class="small">${esc(paymentLabel(s.payment_method))}</td>
           <td>${s.status === 'voided'
-            ? '<span class="badge badge-danger">Voided</span>'
-            : '<span class="badge badge-ok">Completed</span>'}</td>
+            ? '<span class="badge badge-danger">বাতিল</span>'
+            : '<span class="badge badge-ok">সম্পন্ন</span>'}</td>
           <td class="small muted">${esc(s.username || '—')}</td>
         </tr>`).join('')}</tbody>
       <tfoot><tr>
-        <td colspan="4">Page total (${completed.length} completed)</td>
+        <td colspan="4">এই পাতার মোট (${completed.length}টি সম্পন্ন)</td>
         <td class="num">${money(pageRevenue)}</td>
         <td colspan="3"></td>
       </tr></tfoot>
     </table></div>
     <div class="pager">
-      <span>Showing ${filters.offset + 1}–${filters.offset + items.length} of ${int(total)}</span>
+      <span>${int(total)}টির মধ্যে ${filters.offset + 1}–${filters.offset + items.length} দেখানো হচ্ছে</span>
       <span class="spacer"></span>
-      <button class="btn btn-sm" id="prev" ${filters.offset === 0 ? 'disabled' : ''}>← Previous</button>
-      <button class="btn btn-sm" id="next" ${filters.offset + PAGE >= total ? 'disabled' : ''}>Next →</button>
+      <button class="btn btn-sm" id="prev" ${filters.offset === 0 ? 'disabled' : ''}>← আগের</button>
+      <button class="btn btn-sm" id="next" ${filters.offset + PAGE >= total ? 'disabled' : ''}>পরের →</button>
     </div>`;
 
   box.querySelector('#prev')?.addEventListener('click', () => {
@@ -120,30 +120,30 @@ async function openSale(id, root, ctx) {
   const showsProfit = sale.profit !== undefined;
 
   modal({
-    title: `${sale.invoice_no}${sale.status === 'voided' ? ' (voided)' : ''}`,
+    title: `${sale.invoice_no}${sale.status === 'voided' ? ' (বাতিল)' : ''}`,
     large: true,
     body: `
       ${sale.status === 'voided'
-        ? '<div class="alert alert-error">This sale was voided and the stock has been returned.</div>' : ''}
+        ? '<div class="alert alert-error">এই বিক্রয়টি বাতিল করা হয়েছে এবং স্টক ফেরত দেওয়া হয়েছে।</div>' : ''}
 
       <table style="margin-bottom:18px">
         <tbody>
-          <tr><td class="muted">Date</td><td>${esc(when(sale.created_at))}</td>
-              <td class="muted">Cashier</td><td>${esc(sale.cashier_name || sale.username || '—')}</td></tr>
-          <tr><td class="muted">Customer</td><td>${esc(sale.customer_name || 'Walk-in')}</td>
-              <td class="muted">Phone</td><td>${esc(sale.customer_phone || '—')}</td></tr>
-          <tr><td class="muted">Payment</td><td style="text-transform:capitalize">${esc(sale.payment_method)}</td>
+          <tr><td class="muted">তারিখ</td><td>${esc(when(sale.created_at))}</td>
+              <td class="muted">ক্যাশিয়ার</td><td>${esc(sale.cashier_name || sale.username || '—')}</td></tr>
+          <tr><td class="muted">ক্রেতা</td><td>${esc(sale.customer_name || 'সাধারণ ক্রেতা')}</td>
+              <td class="muted">ফোন</td><td>${esc(sale.customer_phone || '—')}</td></tr>
+          <tr><td class="muted">পরিশোধ</td><td>${esc(paymentLabel(sale.payment_method))}</td>
               ${showsProfit
-                ? `<td class="muted">Profit</td>
+                ? `<td class="muted">লাভ</td>
                    <td class="${sale.profit >= 0 ? 'text-ok' : 'text-danger'}">
-                     ${money(sale.profit)} <span class="muted small">· ${int(sale.margin_percent)}% margin</span>
+                     ${money(sale.profit)} <span class="muted small">· ${int(sale.margin_percent)}% মার্জিন</span>
                    </td>`
                 : '<td></td><td></td>'}</tr>
         </tbody>
       </table>
 
       <div class="table-wrap"><table>
-        <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Line total</th></tr></thead>
+        <thead><tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">একক দর</th><th class="num">লাইন মোট</th></tr></thead>
         <tbody>${sale.items.map((i) => `
           <tr>
             <td>
@@ -157,29 +157,29 @@ async function openSale(id, root, ctx) {
       </table></div>
 
       <div class="totals">
-        <div class="total-row"><span>Subtotal</span><span>${money(sale.subtotal)}</span></div>
-        <div class="total-row"><span>Discount</span><span>−${money(sale.discount)}</span></div>
-        <div class="total-row"><span>Tax</span><span>${money(sale.tax)}</span></div>
-        <div class="total-row grand"><span>Total</span><span>${money(sale.total)}</span></div>
+        <div class="total-row"><span>উপমোট</span><span>${money(sale.subtotal)}</span></div>
+        <div class="total-row"><span>ছাড়</span><span>−${money(sale.discount)}</span></div>
+        <div class="total-row"><span>কর</span><span>${money(sale.tax)}</span></div>
+        <div class="total-row grand"><span>সর্বমোট</span><span>${money(sale.total)}</span></div>
       </div>`,
     footer: `
-      <button class="btn" data-close>Close</button>
-      <button class="btn" id="print-btn">Print receipt</button>
+      <button class="btn" data-close>বন্ধ</button>
+      <button class="btn" id="print-btn">রসিদ প্রিন্ট</button>
       ${sale.status === 'completed' && canEdit()
-        ? '<button class="btn btn-danger" id="void-btn">Void sale</button>' : ''}`,
+        ? '<button class="btn btn-danger" id="void-btn">বিক্রয় বাতিল</button>' : ''}`,
     onMount: (el, close) => {
       el.querySelector('#print-btn').addEventListener('click', () => { close(); showReceipt(sale); });
 
       el.querySelector('#void-btn')?.addEventListener('click', async () => {
         const ok = await confirmDialog({
-          title: 'Void this sale?',
-          message: `Voiding <strong>${esc(sale.invoice_no)}</strong> returns all ${sale.items.length} line(s) to stock. The invoice stays in your records marked as voided.`,
-          confirmLabel: 'Void sale',
+          title: 'এই বিক্রয়টি বাতিল করবেন?',
+          message: `<strong>${esc(sale.invoice_no)}</strong> বাতিল করলে ${sale.items.length}টি লাইনের পণ্যই স্টকে ফিরে যাবে। চালানটি বাতিল হিসেবে চিহ্নিত হয়ে আপনার নথিতে থেকে যাবে।`,
+          confirmLabel: 'বিক্রয় বাতিল',
           danger: true,
         });
         if (!ok) return;
         try {
-          const res = await api.voidSale(sale.id, 'Voided from sales list');
+          const res = await api.voidSale(sale.id, 'বিক্রয় তালিকা থেকে বাতিল করা হয়েছে');
           toast(res.message);
           close();
           load(root, ctx);

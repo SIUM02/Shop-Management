@@ -13,63 +13,63 @@ export async function render(root, ctx) {
   // setActions renders into the toolbar and hands it back; the buttons live
   // there, not under `root`, so the handlers below must query what it returns.
   const actions = ctx.setActions(`
-    <button class="btn btn-primary" id="new-sale">＋ New Sale</button>
-    <button class="btn" id="go-products">Manage Products</button>
+    <button class="btn btn-primary" id="new-sale">＋ নতুন বিক্রয়</button>
+    <button class="btn" id="go-products">পণ্য পরিচালনা</button>
   `);
 
   const alerts = t.out_of_stock + t.low_stock;
 
   root.innerHTML = `
     ${alerts ? `<div class="alert alert-warn">
-      <strong>${int(alerts)} product${alerts === 1 ? '' : 's'} need attention</strong> —
-      ${int(t.out_of_stock)} out of stock, ${int(t.low_stock)} at or below reorder level.
-      <a href="#/products?status=low">Review them →</a>
+      <strong>${int(alerts)}টি পণ্যের দিকে নজর দেওয়া দরকার</strong> —
+      ${int(t.out_of_stock)}টি স্টকে নেই, ${int(t.low_stock)}টি পুনঃক্রয় সীমায় বা তার নিচে।
+      <a href="#/products?status=low">দেখে নিন →</a>
     </div>` : ''}
 
     <div class="grid grid-kpi">
       <div class="card kpi kpi-soft kpi-tint-1">
         <div class="kpi-head">
-          <div class="kpi-label">Stock value (cost)</div>
+          <div class="kpi-label">স্টকের মূল্য (ক্রয়মূল্যে)</div>
           <div class="kpi-icon">${ICON_WALLET}</div>
         </div>
         <div class="kpi-value">${money(t.stock_value_cost)}</div>
-        <div class="kpi-sub">${int(t.total_units)} units across ${int(t.product_count)} products</div>
+        <div class="kpi-sub">${int(t.product_count)}টি পণ্যে মোট ${int(t.total_units)} একক</div>
       </div>
       <div class="card kpi kpi-soft kpi-tint-4">
         <div class="kpi-head">
-          <div class="kpi-label">Today's sales</div>
+          <div class="kpi-label">আজকের বিক্রয়</div>
           <div class="kpi-icon">${ICON_TREND}</div>
         </div>
         <div class="kpi-value">${money(d.today.revenue)}</div>
-        <div class="kpi-sub">${int(d.today.sale_count)} order${d.today.sale_count === 1 ? '' : 's'}${seesProfit() ? ` · ${money(d.today.profit)} profit` : ''}</div>
+        <div class="kpi-sub">${int(d.today.sale_count)}টি অর্ডার${seesProfit() ? ` · ${money(d.today.profit)} লাভ` : ''}</div>
       </div>
       <div class="card kpi kpi-soft kpi-tint-2">
         <div class="kpi-head">
-          <div class="kpi-label">This month</div>
+          <div class="kpi-label">চলতি মাস</div>
           <div class="kpi-icon">${ICON_CALENDAR}</div>
         </div>
         <div class="kpi-value">${money(d.month.revenue)}</div>
-        <div class="kpi-sub">${int(d.month.sale_count)} order${d.month.sale_count === 1 ? '' : 's'}${seesProfit() ? ` · ${money(d.month.profit)} profit` : ''}</div>
+        <div class="kpi-sub">${int(d.month.sale_count)}টি অর্ডার${seesProfit() ? ` · ${money(d.month.profit)} লাভ` : ''}</div>
       </div>
       <div class="card kpi kpi-soft ${t.out_of_stock ? 'kpi-tint-danger' : t.low_stock ? 'kpi-tint-warn' : 'kpi-tint-ok'}">
         <div class="kpi-head">
-          <div class="kpi-label">Needs restocking</div>
+          <div class="kpi-label">পুনঃমজুদ প্রয়োজন</div>
           <div class="kpi-icon">${ICON_ALERT}</div>
         </div>
         <div class="kpi-value">${int(t.low_stock + t.out_of_stock)}</div>
-        <div class="kpi-sub">${int(t.out_of_stock)} out of stock · retail value ${money(t.stock_value_retail)}</div>
+        <div class="kpi-sub">${int(t.out_of_stock)}টি স্টকে নেই · খুচরা মূল্য ${money(t.stock_value_retail)}</div>
       </div>
     </div>
 
     <div class="grid grid-2" style="margin-top:18px">
       <div class="card">
-        <div class="card-head"><h2>Revenue — last 14 days</h2></div>
+        <div class="card-head"><h2>আয় — গত ১৪ দিন</h2></div>
         <div class="card-body">${barChart(d.trend)}</div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h2>Top sellers</h2><span class="sub">last 30 days</span>
+          <h2>সর্বাধিক বিক্রীত</h2><span class="sub">গত ৩০ দিন</span>
         </div>
         <div class="card-body">${topSellers(d.topProducts)}</div>
       </div>
@@ -78,23 +78,23 @@ export async function render(root, ctx) {
     <div class="grid grid-2" style="margin-top:18px">
       <div class="card">
         <div class="card-head">
-          <h2>Low stock</h2>
-          <a class="btn btn-sm" href="#/reports">Reorder report</a>
+          <h2>স্টক কম</h2>
+          <a class="btn btn-sm" href="#/reports">পুনঃক্রয় রিপোর্ট</a>
         </div>
         <div class="card-body tight">${lowStockTable(d.lowStock)}</div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h2>Recent activity</h2>
-          <a class="btn btn-sm" href="#/stock">View all</a>
+          <h2>সাম্প্রতিক কার্যক্রম</h2>
+          <a class="btn btn-sm" href="#/stock">সব দেখুন</a>
         </div>
         <div class="card-body tight">${activityTable(d.recentMovements)}</div>
       </div>
     </div>
 
     <div class="card" style="margin-top:18px">
-      <div class="card-head"><h2>Stock value by category</h2></div>
+      <div class="card-head"><h2>ক্যাটাগরি অনুযায়ী স্টকের মূল্য</h2></div>
       <div class="card-body tight">${categoryTable(d.byCategory, t.stock_value_cost)}</div>
     </div>
   `;
@@ -104,7 +104,7 @@ export async function render(root, ctx) {
 }
 
 function topSellers(rows) {
-  if (!rows.length) return empty('No sales in the last 30 days', '📈');
+  if (!rows.length) return empty('গত ৩০ দিনে কোনো বিক্রয় হয়নি', '📈');
   const max = Math.max(...rows.map((r) => r.revenue), 1);
   const TINTS = ['kpi-tint-1', 'kpi-tint-2', 'kpi-tint-3', 'kpi-tint-4'];
   return rows.map((r, i) => `
@@ -116,15 +116,15 @@ function topSellers(rows) {
       </div>
       <div class="num">
         <div style="font-weight:600">${money(r.revenue)}</div>
-        <div class="small muted">${int(r.units_sold)} sold</div>
+        <div class="small muted">${int(r.units_sold)}টি বিক্রি</div>
       </div>
     </div>`).join('');
 }
 
 function lowStockTable(rows) {
-  if (!rows.length) return empty('Everything is above its reorder level', '✅');
+  if (!rows.length) return empty('সব পণ্যই পুনঃক্রয় সীমার উপরে আছে', '✅');
   return `<div class="table-wrap"><table>
-    <thead><tr><th>Product</th><th class="num">In stock</th><th class="num">Reorder at</th><th>Supplier</th></tr></thead>
+    <thead><tr><th>পণ্য</th><th class="num">স্টকে</th><th class="num">পুনঃক্রয় সীমা</th><th>সরবরাহকারী</th></tr></thead>
     <tbody>${rows.map((r) => `
       <tr>
         <td>
@@ -141,9 +141,9 @@ function lowStockTable(rows) {
 }
 
 function activityTable(rows) {
-  if (!rows.length) return empty('No stock activity yet', '⇅');
+  if (!rows.length) return empty('এখনও কোনো স্টক কার্যক্রম নেই', '⇅');
   return `<div class="table-wrap"><table>
-    <thead><tr><th>Product</th><th>Type</th><th class="num">Change</th><th class="num">When</th></tr></thead>
+    <thead><tr><th>পণ্য</th><th>ধরন</th><th class="num">পরিবর্তন</th><th class="num">কখন</th></tr></thead>
     <tbody>${rows.map((r) => `
       <tr>
         <td>
@@ -161,9 +161,9 @@ function activityTable(rows) {
 }
 
 function categoryTable(rows, grandTotal) {
-  if (!rows.length) return empty('No products yet', '📦');
+  if (!rows.length) return empty('এখনও কোনো পণ্য নেই', '📦');
   return `<div class="table-wrap"><table>
-    <thead><tr><th>Category</th><th class="num">Products</th><th class="num">Units</th><th class="num">Stock value</th><th class="num">Share</th></tr></thead>
+    <thead><tr><th>ক্যাটাগরি</th><th class="num">পণ্য</th><th class="num">একক</th><th class="num">স্টকের মূল্য</th><th class="num">অংশ</th></tr></thead>
     <tbody>${rows.map((r) => `
       <tr>
         <td class="cell-main">${esc(r.category)}</td>
@@ -173,7 +173,7 @@ function categoryTable(rows, grandTotal) {
         <td class="num muted">${grandTotal > 0 ? ((r.value / grandTotal) * 100).toFixed(1) : '0.0'}%</td>
       </tr>`).join('')}</tbody>
     <tfoot><tr>
-      <td>Total</td>
+      <td>মোট</td>
       <td class="num">${int(rows.reduce((a, r) => a + r.products, 0))}</td>
       <td class="num">${int(rows.reduce((a, r) => a + r.units, 0))}</td>
       <td class="num">${money(grandTotal)}</td>

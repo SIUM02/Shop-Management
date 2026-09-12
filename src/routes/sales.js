@@ -76,7 +76,7 @@ router.get(
     const sale = await q.get(`SELECT s.*, u.username, u.full_name AS cashier_name
          FROM sales s LEFT JOIN users u ON u.id = s.user_id
          WHERE s.id = ?`, Number(req.params.id));
-    if (!sale) throw notFound('Sale not found');
+    if (!sale) throw notFound('বিক্রয় পাওয়া যায়নি');
 
     sale.items = await q.all('SELECT * FROM sale_items WHERE sale_id = ? ORDER BY id', sale.id);
     res.json(withProfit(sale));
@@ -87,18 +87,18 @@ router.post(
   '/',
   wrap(async (req, res) => {
     const lines = Array.isArray(req.body.items) ? req.body.items : [];
-    if (!lines.length) throw badRequest('Add at least one item to the sale');
-    if (lines.length > 200) throw badRequest('A single sale can hold at most 200 lines');
+    if (!lines.length) throw badRequest('বিক্রয়ে অন্তত একটি পণ্য যোগ করুন');
+    if (lines.length > 200) throw badRequest('একটি বিক্রয়ে সর্বোচ্চ ২০০টি লাইন রাখা যাবে');
 
-    const customerName = str(req.body.customer_name, { field: 'Customer name', max: 120 });
-    const customerPhone = str(req.body.customer_phone, { field: 'Customer phone', max: 40 });
-    const paymentMethod = str(req.body.payment_method, { field: 'Payment method', max: 30, fallback: 'cash' }) || 'cash';
-    const note = str(req.body.note, { field: 'Note', max: 500 });
-    const discount = money(num(req.body.discount, { field: 'Discount', min: 0 }));
+    const customerName = str(req.body.customer_name, { field: 'ক্রেতার নাম', max: 120 });
+    const customerPhone = str(req.body.customer_phone, { field: 'ক্রেতার ফোন', max: 40 });
+    const paymentMethod = str(req.body.payment_method, { field: 'পরিশোধের মাধ্যম', max: 30, fallback: 'cash' }) || 'cash';
+    const note = str(req.body.note, { field: 'নোট', max: 500 });
+    const discount = money(num(req.body.discount, { field: 'ছাড়', min: 0 }));
     const settings = await getSettings();
     const taxPercent = req.body.tax_percent === undefined
       ? Number(settings.tax_percent || 0)
-      : num(req.body.tax_percent, { field: 'Tax percent', min: 0, max: 100 });
+      : num(req.body.tax_percent, { field: 'কর শতাংশ', min: 0, max: 100 });
 
     const sale = await transaction(async (tx) => {
       const priced = [];
@@ -110,7 +110,7 @@ router.post(
         const qty = int(line.quantity, { field: `Item ${i + 1} quantity`, required: true, min: 1 });
 
         const product = await tx.get('SELECT * FROM products WHERE id = ?', productId);
-        if (!product) throw badRequest(`Item ${i + 1}: product no longer exists`);
+        if (!product) throw badRequest(`${i + 1} নম্বর পণ্যটি আর নেই`);
 
         // Price defaults to the catalogue price but can be overridden per line.
         const unitPrice = line.unit_price === undefined || line.unit_price === ''
@@ -134,7 +134,7 @@ router.post(
 
       subtotal = money(subtotal);
       costTotal = money(costTotal);
-      if (discount > subtotal) throw badRequest('Discount cannot be larger than the subtotal');
+      if (discount > subtotal) throw badRequest('ছাড় উপমোটের চেয়ে বেশি হতে পারবে না');
 
       const taxable = subtotal - discount;
       const tax = money(taxable * (taxPercent / 100));
@@ -184,10 +184,10 @@ router.post(
   wrap(async (req, res) => {
     const id = Number(req.params.id);
     const sale = await q.get('SELECT * FROM sales WHERE id = ?', id);
-    if (!sale) throw notFound('Sale not found');
-    if (sale.status === 'voided') throw badRequest('That sale is already voided');
+    if (!sale) throw notFound('বিক্রয় পাওয়া যায়নি');
+    if (sale.status === 'voided') throw badRequest('এই বিক্রয়টি আগেই বাতিল করা হয়েছে');
 
-    const reason = str(req.body.reason, { field: 'Reason', max: 300 });
+    const reason = str(req.body.reason, { field: 'কারণ', max: 300 });
 
     await transaction(async (tx) => {
       const items = await tx.all('SELECT * FROM sale_items WHERE sale_id = ?', id);
@@ -206,7 +206,7 @@ router.post(
       await tx.run("UPDATE sales SET status = 'voided' WHERE id = ?", id);
     });
 
-    res.json({ ok: true, message: `${sale.invoice_no} voided and stock returned.` });
+    res.json({ ok: true, message: `${sale.invoice_no} বাতিল করা হয়েছে এবং স্টক ফেরত দেওয়া হয়েছে।` });
   })
 );
 

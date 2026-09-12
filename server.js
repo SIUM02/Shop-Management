@@ -12,17 +12,17 @@ const HOST = process.env.HOST || '0.0.0.0';
 const created = await boot();
 
 app.listen(PORT, HOST, () => {
-  console.log(`\n  ${created ? '✨ ' : ''}Shop Inventory is running`);
+  console.log(`\n  ${created ? '✨ ' : ''}দোকান ইনভেন্টরি চালু আছে`);
   console.log(`  →  http://localhost:${PORT}`);
-  console.log(`  DB:  ${dbTarget}`);
+  console.log(`  ডেটাবেস:  ${dbTarget}`);
   if (created) {
-    console.log('\n  First run — sign in with:');
-    console.log(`     username: ${created.username}`);
-    console.log(`     password: ${created.password}`);
+    console.log('\n  প্রথমবার চালু — এই তথ্য দিয়ে সাইন ইন করুন:');
+    console.log(`     ইউজারনেম: ${created.username}`);
+    console.log(`     পাসওয়ার্ড: ${created.password}`);
     if (created.source === 'generated') {
-      console.log('\n  This password was generated and is shown only once. Save it now.');
+      console.log('\n  এই পাসওয়ার্ডটি তৈরি করা হয়েছে এবং একবারই দেখানো হবে। এখনই সংরক্ষণ করুন।');
     } else {
-      console.log('\n  Change this password from Settings once you are in.');
+      console.log('\n  ভেতরে ঢুকে সেটিংস থেকে এই পাসওয়ার্ডটি বদলে নিন।');
     }
     console.log('');
   } else {

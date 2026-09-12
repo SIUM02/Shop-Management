@@ -28,8 +28,8 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const SECRET = process.env.JWT_SECRET || '';
 if (IS_PROD && (SECRET.length < 32 || SECRET.includes('change-me'))) {
   throw new Error(
-    'Refusing to start: JWT_SECRET is missing, too short, or still the placeholder. ' +
-      'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"'
+    'চালু করা যাচ্ছে না: JWT_SECRET নেই, খুব ছোট, অথবা এখনও ডিফল্ট মান আছে। ' +
+      'একটি তৈরি করুন: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"'
   );
 }
 
@@ -115,7 +115,7 @@ app.use('/api/reports', requireAuth, reportRoutes);
 app.use('/api/users', requireAuth, userRoutes);
 app.use('/api/settings', requireAuth, settingsRouter);
 
-app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown endpoint' }));
+app.use('/api', (req, res) => res.status(404).json({ error: 'অজানা এন্ডপয়েন্ট' }));
 
 // The SPA owns client-side routing, so any other GET returns the shell.
 app.get(/^(?!\/api).*/, (req, res) => {
@@ -126,15 +126,15 @@ app.use((err, req, res, next) => {
   const status = err.status || 500;
   if (status >= 500) console.error('[error]', err);
 
-  let message = err.message || 'Something went wrong';
+  let message = err.message || 'কিছু একটা সমস্যা হয়েছে';
   // Turn database constraint errors into something a shopkeeper can act on.
   // Postgres reports these as SQLSTATE codes rather than message text.
   if (err.code === '23505' || /duplicate key value/i.test(message)) {
-    message = 'That value must be unique — a record with it already exists.';
+    message = 'এই মানটি অদ্বিতীয় হতে হবে — এটি দিয়ে একটি রেকর্ড আগে থেকেই আছে।';
   } else if (err.code === '23503' || /foreign key constraint/i.test(message)) {
-    message = 'That record is still referenced elsewhere and cannot be changed.';
+    message = 'রেকর্ডটি অন্য জায়গায় এখনও ব্যবহৃত হচ্ছে, তাই পরিবর্তন করা যাবে না।';
   } else if (status >= 500) {
-    message = 'Something went wrong on the server. Please try again.';
+    message = 'সার্ভারে কিছু একটা সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
   }
   res.status(status).json({ error: message });
 });

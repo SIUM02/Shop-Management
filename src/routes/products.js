@@ -77,7 +77,7 @@ router.get(
   '/:id',
   wrap(async (req, res) => {
     const product = await q.get(`${SELECT_PRODUCT} WHERE p.id = ?`, Number(req.params.id));
-    if (!product) throw notFound('Product not found');
+    if (!product) throw notFound('পণ্য পাওয়া যায়নি');
 
     product.movements = await q.all(`SELECT m.*, u.username
          FROM stock_movements m
@@ -92,24 +92,24 @@ router.get(
 async function readBody(body) {
   const data = {
     sku: str(body.sku, { field: 'SKU', required: true, max: 60 }),
-    name: str(body.name, { field: 'Name', required: true, max: 200 }),
-    barcode: str(body.barcode, { field: 'Barcode', max: 60 }) || null,
-    description: str(body.description, { field: 'Description', max: 2000 }),
+    name: str(body.name, { field: 'নাম', required: true, max: 200 }),
+    barcode: str(body.barcode, { field: 'বারকোড', max: 60 }) || null,
+    description: str(body.description, { field: 'বিবরণ', max: 2000 }),
     category_id: optionalId(body.category_id),
     supplier_id: optionalId(body.supplier_id),
-    cost_price: money(num(body.cost_price, { field: 'Cost price', min: 0 })),
-    sell_price: money(num(body.sell_price, { field: 'Selling price', min: 0 })),
-    reorder_level: int(body.reorder_level, { field: 'Reorder level', min: 0 }),
-    unit: str(body.unit, { field: 'Unit', max: 20, fallback: 'pcs' }) || 'pcs',
-    location: str(body.location, { field: 'Location', max: 100 }),
+    cost_price: money(num(body.cost_price, { field: 'ক্রয়মূল্য', min: 0 })),
+    sell_price: money(num(body.sell_price, { field: 'বিক্রয়মূল্য', min: 0 })),
+    reorder_level: int(body.reorder_level, { field: 'পুনঃক্রয় সীমা', min: 0 }),
+    unit: str(body.unit, { field: 'একক', max: 20, fallback: 'pcs' }) || 'pcs',
+    location: str(body.location, { field: 'অবস্থান', max: 100 }),
     active: body.active === undefined ? 1 : body.active ? 1 : 0,
   };
 
   if (data.category_id && !(await q.get('SELECT id FROM categories WHERE id = ?', data.category_id))) {
-    throw badRequest('Selected category no longer exists');
+    throw badRequest('নির্বাচিত ক্যাটাগরিটি আর নেই');
   }
   if (data.supplier_id && !(await q.get('SELECT id FROM suppliers WHERE id = ?', data.supplier_id))) {
-    throw badRequest('Selected supplier no longer exists');
+    throw badRequest('নির্বাচিত সরবরাহকারীটি আর নেই');
   }
   return data;
 }
@@ -119,10 +119,10 @@ router.post(
   requireRole('admin', 'manager'),
   wrap(async (req, res) => {
     const data = await readBody(req.body);
-    const openingQty = int(req.body.quantity, { field: 'Opening quantity', min: 0 });
+    const openingQty = int(req.body.quantity, { field: 'প্রারম্ভিক পরিমাণ', min: 0 });
 
     if (await q.get('SELECT id FROM products WHERE sku = ?', data.sku)) {
-      throw new HttpError(409, `SKU "${data.sku}" is already in use`);
+      throw new HttpError(409, `SKU "${data.sku}" আগে থেকেই ব্যবহৃত হচ্ছে`);
     }
 
     const id = await transaction(async (tx) => {
@@ -153,12 +153,12 @@ router.put(
   wrap(async (req, res) => {
     const id = Number(req.params.id);
     if (!(await q.get('SELECT id FROM products WHERE id = ?', id))) {
-      throw notFound('Product not found');
+      throw notFound('পণ্য পাওয়া যায়নি');
     }
     const data = await readBody(req.body);
 
     if (await q.get('SELECT id FROM products WHERE sku = ? AND id != ?', data.sku, id)) {
-      throw new HttpError(409, `SKU "${data.sku}" is already in use`);
+      throw new HttpError(409, `SKU "${data.sku}" আগে থেকেই ব্যবহৃত হচ্ছে`);
     }
 
     // quantity is deliberately not editable here — it only moves through
@@ -179,7 +179,7 @@ router.delete(
   wrap(async (req, res) => {
     const id = Number(req.params.id);
     const product = await q.get('SELECT * FROM products WHERE id = ?', id);
-    if (!product) throw notFound('Product not found');
+    if (!product) throw notFound('পণ্য পাওয়া যায়নি');
 
     const soldCount = (await q.get('SELECT COUNT(*) AS n FROM sale_items WHERE product_id = ?', id)).n;
 
@@ -190,12 +190,12 @@ router.delete(
       return res.json({
         ok: true,
         archived: true,
-        message: `"${product.name}" appears on ${soldCount} sale(s), so it was archived instead of deleted.`,
+        message: `"${product.name}" ${soldCount}টি বিক্রয়ে রয়েছে, তাই এটি মোছার বদলে সংরক্ষণাগারে রাখা হয়েছে।`,
       });
     }
 
     await q.run('DELETE FROM products WHERE id = ?', id);
-    res.json({ ok: true, archived: false, message: `"${product.name}" was deleted.` });
+    res.json({ ok: true, archived: false, message: `"${product.name}" মুছে ফেলা হয়েছে।` });
   })
 );
 
@@ -205,7 +205,7 @@ router.get(
   wrap(async (req, res) => {
     const code = String(req.params.code).trim();
     const product = await q.get(`${SELECT_PRODUCT} WHERE p.active = 1 AND (p.barcode = ? OR p.sku = ?)`, code, code);
-    if (!product) throw notFound('No product matches that code');
+    if (!product) throw notFound('এই কোডের সাথে কোনো পণ্য মেলেনি');
     res.json(product);
   })
 );

@@ -14,7 +14,7 @@ async function request(method, url, body) {
   try {
     res = await fetch(url, opts);
   } catch {
-    throw new Error('Cannot reach the server. Is it still running?');
+    throw new Error('সার্ভারে পৌঁছানো যাচ্ছে না। সার্ভার কি চালু আছে?');
   }
 
   if (res.status === 401) {
@@ -27,14 +27,14 @@ async function request(method, url, body) {
       if (text) serverMessage = JSON.parse(text).error || '';
     } catch { /* not JSON; fall back to the generic wording */ }
 
-    const err = new Error(serverMessage || 'Your session ended. Please sign in again.');
+    const err = new Error(serverMessage || 'আপনার সেশন শেষ হয়েছে। অনুগ্রহ করে আবার সাইন ইন করুন।');
     err.unauthorized = true;
     throw err;
   }
 
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(data?.error || `অনুরোধ ব্যর্থ হয়েছে (${res.status})`);
   return data;
 }
 

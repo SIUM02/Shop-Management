@@ -36,7 +36,7 @@ function parseArgs(argv) {
 
 export async function convertCurrency({ rate, symbol, locale, apply }) {
   if (!Number.isFinite(rate) || rate <= 0) {
-    throw new Error('Pass a positive exchange rate, e.g. --rate 122.5');
+    throw new Error('একটি ধনাত্মক বিনিময় হার দিন, যেমন --rate 122.5');
   }
 
   const before = await getSettings();
@@ -47,18 +47,18 @@ export async function convertCurrency({ rate, symbol, locale, apply }) {
     counts[table] = (await q.get(`SELECT COUNT(*) AS n FROM ${table}`)).n;
   }
 
-  console.log(`\nDatabase: ${dbTarget}`);
-  console.log(`Rate:     1 old unit = ${rate} new units`);
-  console.log(`Symbol:   ${before.currency_symbol} → ${symbol}`);
-  console.log(`Format:   ${before.number_locale || 'en-IN'} → ${locale}\n`);
+  console.log(`\nডেটাবেস:  ${dbTarget}`);
+  console.log(`হার:      ১ পুরনো একক = ${rate} নতুন একক`);
+  console.log(`চিহ্ন:     ${before.currency_symbol} → ${symbol}`);
+  console.log(`বিন্যাস:   ${before.number_locale || 'en-IN'} → ${locale}\n`);
 
-  console.log('Rows to update:');
+  console.log('যেসব সারি বদলাবে:');
   for (const [table, cols] of Object.entries(MONEY_COLUMNS)) {
-    console.log(`  ${table.padEnd(17)} ${String(counts[table]).padStart(6)} rows  (${cols.join(', ')})`);
+    console.log(`  ${table.padEnd(17)} ${String(counts[table]).padStart(6)} সারি  (${cols.join(', ')})`);
   }
 
   if (samples.length) {
-    console.log('\nSample products:');
+    console.log('\nনমুনা পণ্য:');
     for (const p of samples) {
       const c = (p.cost_price * rate).toFixed(2);
       const s = (p.sell_price * rate).toFixed(2);
@@ -71,7 +71,7 @@ export async function convertCurrency({ rate, symbol, locale, apply }) {
   }
 
   if (!apply) {
-    console.log('\nPreview only — nothing was written. Re-run with --apply to convert.\n');
+    console.log('\nশুধু প্রিভিউ — কিছুই লেখা হয়নি। রূপান্তর করতে --apply দিয়ে আবার চালান।\n');
     return { applied: false };
   }
 
@@ -91,7 +91,7 @@ export async function convertCurrency({ rate, symbol, locale, apply }) {
     }
   });
 
-  console.log('\nConverted. Reload the app to see the new prices.\n');
+  console.log('\nরূপান্তর সম্পন্ন। নতুন দাম দেখতে অ্যাপটি আবার লোড করুন।\n');
   return { applied: true };
 }
 
@@ -101,7 +101,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     await ready();
     await convertCurrency(args);
   } catch (err) {
-    console.error(`\nError: ${err.message}\n`);
+    console.error(`\nত্রুটি: ${err.message}\n`);
     process.exitCode = 1;
   } finally {
     await pool.end();
