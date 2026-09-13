@@ -376,13 +376,22 @@ export function ready() {
                AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_products_updated')
                AS done
       `);
-      if (installed?.done) return;
+      if (!installed?.done) {
+        // The time helpers define shop_utc_now(), which the schema below uses
+        // as a column default, so they have to be created first.
+        await q.exec(TIME_HELPERS.replaceAll('%L', `'${TZ}'`));
+        await q.exec(SCHEMA);
+        await q.exec(TRIGGERS);
+      }
 
-      // The time helpers define shop_utc_now(), which the schema below uses as
-      // a column default, so they have to be created first.
-      await q.exec(TIME_HELPERS.replaceAll('%L', `'${TZ}'`));
-      await q.exec(SCHEMA);
-      await q.exec(TRIGGERS);
+      /*
+       * Always fill in missing settings, even on a database that is already
+       * installed. A release that adds a setting — the shop's phone number and
+       * address, printed on every invoice — would otherwise reach new shops
+       * only, and the existing one would keep printing receipts with the new
+       * fields silently blank. One INSERT that does nothing on conflict is a
+       * cheap price for an upgrade that actually arrives.
+       */
       await applyDefaultSettings();
     })().catch((err) => {
       readyPromise = null; // let a later request retry rather than wedging
