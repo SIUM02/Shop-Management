@@ -788,6 +788,28 @@ tfoot td {
 .receipt { font-family: var(--mono); font-size: 12.5px; }
 .receipt-head { text-align: center; margin-bottom: 14px; }
 .receipt-head h3 { font-family: var(--font); font-size: 17px; }
+
+/* Shop identity on the printed invoice. The logo is inline SVG with its own
+   fills rather than currentColor, because browsers drop background colours
+   when printing but keep SVG fills. */
+.receipt-brand {
+  display: flex; align-items: center; justify-content: center;
+  gap: 9px; margin-bottom: 6px;
+}
+.receipt-logo { width: 34px; height: 34px; flex: none; }
+.receipt-owner {
+  font-family: var(--font); font-weight: 600;
+  font-size: 12.5px; margin-top: 2px;
+}
+.receipt-contact { font-family: var(--font); font-size: 11.5px; color: #444; }
+/* A border, not a background: browsers drop background colours when printing
+   unless the page asks otherwise, and this rule is the one piece of the shop's
+   colour that has to survive onto paper. */
+.receipt-rule {
+  width: 54px; height: 0;
+  border-top: 3px solid #F5A524;
+  margin: 9px auto;
+}
 .receipt table { font-size: 12.5px; }
 .receipt td, .receipt th { padding: 5px 6px; }
 
@@ -799,6 +821,8 @@ tfoot td {
   .modal-head, .modal-foot { display: none; }
   /* Margin is for the owner's screen, never the customer's copy. */
   .no-print, .no-print * { display: none !important; visibility: hidden !important; }
+  /* Keep the shop's mark in colour on the customer's copy. */
+  .receipt-logo, .receipt-rule { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
 /* ------------------------------------------------------------------ responsive */

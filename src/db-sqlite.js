@@ -381,6 +381,10 @@ END;
 
 const DEFAULT_SETTINGS = {
   shop_name: 'জনতা ইলেকট্রিক এন্ড ইলেকট্রনিক্স',
+  shop_proprietor: 'মোঃ মাইনুল হাসান (রিপন)',
+  shop_proprietor_title: 'প্রোপ্রাইটর',
+  shop_phone: '০৬৭৮৯-২০৯৭৯৩ • ০৬৬৬০-৮৭৮৮০৭',
+  shop_address: 'গয়েশপুর রোড, পাবনা সদর, পাবনা',
   currency_symbol: '৳',
   number_locale: 'en-IN',
   tax_percent: '0',

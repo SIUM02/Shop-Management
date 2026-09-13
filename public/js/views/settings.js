@@ -22,6 +22,24 @@ export async function render(root, ctx) {
             </label>
             <div class="form-grid">
               <label class="field">
+                <span>স্বত্বাধিকারীর নাম <span class="hint">রসিদে ছাপা হবে</span></span>
+                <input name="shop_proprietor" maxlength="120" value="${esc(s.shop_proprietor || '')}" ${isAdmin ? '' : 'disabled'} />
+              </label>
+              <label class="field">
+                <span>পদবি</span>
+                <input name="shop_proprietor_title" maxlength="60" value="${esc(s.shop_proprietor_title || '')}" ${isAdmin ? '' : 'disabled'} />
+              </label>
+              <label class="field span-2">
+                <span>ফোন নম্বর <span class="hint">রসিদে ছাপা হবে</span></span>
+                <input name="shop_phone" maxlength="120" value="${esc(s.shop_phone || '')}" ${isAdmin ? '' : 'disabled'} />
+              </label>
+              <label class="field span-2">
+                <span>ঠিকানা <span class="hint">রসিদে ছাপা হবে</span></span>
+                <input name="shop_address" maxlength="200" value="${esc(s.shop_address || '')}" ${isAdmin ? '' : 'disabled'} />
+              </label>
+            </div>
+            <div class="form-grid">
+              <label class="field">
                 <span>মুদ্রার চিহ্ন</span>
                 <input name="currency_symbol" id="cur-symbol" maxlength="5"
                        value="${esc(s.currency_symbol)}" ${isAdmin ? '' : 'disabled'} />

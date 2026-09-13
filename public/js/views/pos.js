@@ -359,7 +359,18 @@ export function showReceipt(sale) {
     body: `
       <div class="receipt">
         <div class="receipt-head">
-          <h3>${esc(state.settings.shop_name)}</h3>
+          <div class="receipt-brand">
+            <svg class="receipt-logo" viewBox="0 0 24 24" aria-hidden="true">
+              <rect width="24" height="24" rx="5" fill="#14304F"/>
+              <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" fill="#F5A524"/>
+            </svg>
+            <h3>${esc(state.settings.shop_name)}</h3>
+          </div>
+          ${state.settings.shop_proprietor ? `<div class="receipt-owner">${esc(state.settings.shop_proprietor)}${
+            state.settings.shop_proprietor_title ? ` · ${esc(state.settings.shop_proprietor_title)}` : ''}</div>` : ''}
+          ${state.settings.shop_phone ? `<div class="receipt-contact">${esc(state.settings.shop_phone)}</div>` : ''}
+          ${state.settings.shop_address ? `<div class="receipt-contact">${esc(state.settings.shop_address)}</div>` : ''}
+          <div class="receipt-rule"></div>
           <div>${esc(sale.invoice_no)}</div>
           <div>${esc(when(sale.created_at))}</div>
           ${sale.customer_name ? `<div>ক্রেতা: ${esc(sale.customer_name)}</div>` : ''}

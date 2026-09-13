@@ -113,6 +113,16 @@ settingsRouter.put(
     if (body.shop_name !== undefined) {
       await setSetting('shop_name', str(body.shop_name, { field: 'দোকানের নাম', required: true, max: 120 }));
     }
+    for (const [key, label, max] of [
+      ['shop_proprietor', 'স্বত্বাধিকারীর নাম', 120],
+      ['shop_proprietor_title', 'পদবি', 60],
+      ['shop_phone', 'ফোন নম্বর', 120],
+      ['shop_address', 'ঠিকানা', 200],
+    ]) {
+      if (body[key] !== undefined) {
+        await setSetting(key, str(body[key], { field: label, max }));
+      }
+    }
     if (body.currency_symbol !== undefined) {
       await setSetting('currency_symbol', str(body.currency_symbol, { field: 'মুদ্রার চিহ্ন', required: true, max: 5 }));
     }
