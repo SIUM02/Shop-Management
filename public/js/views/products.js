@@ -19,10 +19,12 @@ export async function render(root, ctx) {
 
   const actions = ctx.setActions(`
     <button class="btn" id="export-btn">CSV এক্সপোর্ট</button>
+    ${canEdit() ? '<button class="btn" id="import-btn">⬆ ফাইল থেকে আনুন</button>' : ''}
     ${canEdit() ? '<button class="btn btn-primary" id="add-btn">＋ পণ্য যোগ করুন</button>' : ''}
   `);
 
   actions.querySelector('#add-btn')?.addEventListener('click', () => openForm(null, ctx));
+  actions.querySelector('#import-btn')?.addEventListener('click', () => openImport(ctx));
   actions.querySelector('#export-btn').addEventListener('click', () => {
     window.location.href = '/api/reports/export/products';
   });
@@ -465,6 +467,167 @@ export function openStockDialog(product, onDone) {
 
       form.addEventListener('submit', submit);
       btn.addEventListener('click', submit);
+    },
+  });
+}
+
+/* ------------------------------------------------------------ bulk import */
+
+/**
+ * Minimal RFC-4180 CSV reader: quoted fields, escaped quotes, newlines inside
+ * quotes, and both CRLF and LF. A shop's price list is exactly the kind of
+ * file that contains a comma inside a product name, so splitting on commas
+ * would corrupt the catalogue quietly.
+ */
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+
+  // A BOM from Excel would otherwise become part of the first header's name.
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else quoted = false;
+      } else field += ch;
+      continue;
+    }
+    if (ch === '"') { quoted = true; continue; }
+    if (ch === ',') { row.push(field); field = ''; continue; }
+    if (ch === '\r') continue;
+    if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; continue; }
+    field += ch;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+
+  const clean = rows.filter((r) => r.some((c) => String(c).trim() !== ''));
+  if (!clean.length) return [];
+
+  const headers = clean[0].map((h) => String(h).trim());
+  return clean.slice(1).map((r) =>
+    Object.fromEntries(headers.map((h, i) => [h, r[i] ?? ''])));
+}
+
+export function openImport(ctx) {
+  modal({
+    title: 'ফাইল থেকে পণ্য আনুন',
+    large: true,
+    body: `
+      <div class="alert alert-info">
+        <strong>১.</strong> নিচের টেমপ্লেট ফাইলটি নামান ·
+        <strong>২.</strong> এক্সেলে আপনার পণ্যের তথ্য লিখুন ·
+        <strong>৩.</strong> ফাইলটি এখানে দিন।
+        <div class="small" style="margin-top:6px">
+          একই SKU থাকলে সেই পণ্যটি হালনাগাদ হবে, নতুন হলে যোগ হবে।
+          ক্যাটাগরি বা সরবরাহকারী না থাকলে নিজে থেকেই তৈরি হবে।
+        </div>
+      </div>
+
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px">
+        <a class="btn" href="/api/import/template">⬇ টেমপ্লেট নামান (CSV)</a>
+        <a class="btn" href="/api/reports/export/products">⬇ বর্তমান পণ্যের তালিকা</a>
+      </div>
+
+      <label class="field">
+        <span>CSV ফাইল বেছে নিন</span>
+        <input type="file" id="imp-file" accept=".csv,text/csv" />
+      </label>
+
+      <div id="imp-report"></div>`,
+    footer: `
+      <button class="btn" data-close>বাতিল</button>
+      <button class="btn btn-primary" id="imp-go" disabled>আনুন</button>`,
+    onMount: (el, close) => {
+      const file = el.querySelector('#imp-file');
+      const report = el.querySelector('#imp-report');
+      const go = el.querySelector('#imp-go');
+      let rows = [];
+
+      const fail = (msg) => {
+        report.innerHTML = `<div class="alert alert-error">${esc(msg)}</div>`;
+        go.disabled = true;
+      };
+
+      file.addEventListener('change', async () => {
+        rows = [];
+        go.disabled = true;
+        report.innerHTML = loading();
+
+        const chosen = file.files?.[0];
+        if (!chosen) { report.innerHTML = ''; return; }
+
+        let text;
+        try {
+          text = await chosen.text();
+        } catch {
+          return fail('ফাইলটি পড়া যায়নি।');
+        }
+
+        rows = parseCsv(text);
+        if (!rows.length) return fail('ফাইলে কোনো সারি পাওয়া যায়নি।');
+
+        try {
+          const check = await api.importProducts(rows, true);
+          const s = check.summary;
+          report.innerHTML = `
+            <div class="alert ${s.failed ? 'alert-warn' : 'alert-info'}">
+              <strong>${int(s.total)}টি সারি পড়া হয়েছে।</strong>
+              ${int(s.add)}টি নতুন যোগ হবে, ${int(s.update)}টি হালনাগাদ হবে${
+                s.failed ? `, <span class="text-danger">${int(s.failed)}টিতে সমস্যা আছে</span>` : ''}।
+            </div>
+            ${check.errors.length ? `
+              <div class="table-wrap" style="max-height:170px;overflow-y:auto;margin-bottom:12px"><table>
+                <thead><tr><th>সারি</th><th>SKU</th><th>সমস্যা</th></tr></thead>
+                <tbody>${check.errors.map((e) => `
+                  <tr><td class="num">${int(e.line)}</td><td class="mono small">${esc(e.sku || '—')}</td>
+                      <td class="small text-danger">${esc(e.message)}</td></tr>`).join('')}</tbody>
+              </table></div>` : ''}
+            ${check.preview.length ? `
+              <h3 style="font-size:13px;margin:0 0 8px">প্রথম কয়েকটি</h3>
+              <div class="table-wrap" style="max-height:230px;overflow-y:auto"><table>
+                <thead><tr><th>SKU</th><th>নাম</th><th class="num">ক্রয়</th><th class="num">বিক্রয়</th><th class="num">পরিমাণ</th><th>কী হবে</th></tr></thead>
+                <tbody>${check.preview.map((p) => `
+                  <tr>
+                    <td class="mono small">${esc(p.sku)}</td>
+                    <td>${esc(p.name)}</td>
+                    <td class="num">${money(p.cost_price)}</td>
+                    <td class="num">${money(p.sell_price)}</td>
+                    <td class="num">${p.quantity === null ? '—' : int(p.quantity)}</td>
+                    <td>${p.action === 'add'
+                      ? '<span class="badge badge-ok">নতুন</span>'
+                      : '<span class="badge badge-info">হালনাগাদ</span>'}</td>
+                  </tr>`).join('')}</tbody>
+              </table></div>` : ''}`;
+
+          // Rows that failed validation are simply skipped, so the import is
+          // still worth running as long as something survived.
+          go.disabled = s.add + s.update === 0;
+        } catch (err) {
+          fail(err.message);
+        }
+      });
+
+      go.addEventListener('click', async () => {
+        go.disabled = true;
+        go.textContent = 'আনা হচ্ছে…';
+        try {
+          const res = await api.importProducts(rows, false);
+          toast(res.message);
+          if (res.created_lookups?.length) {
+            toast(`নতুন তৈরি হয়েছে — ${res.created_lookups.join(', ')}`);
+          }
+          close();
+          ctx.refresh();
+        } catch (err) {
+          fail(err.message);
+          go.textContent = 'আনুন';
+        }
+      });
     },
   });
 }

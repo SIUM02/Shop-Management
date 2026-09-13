@@ -59,6 +59,7 @@ export const api = {
   updateProduct: (id, data) => request('PUT', `/api/products/${id}`, data),
   deleteProduct: (id) => request('DELETE', `/api/products/${id}`),
   lookup:        (code) => request('GET', `/api/products/lookup/${encodeURIComponent(code)}`),
+  importProducts: (rows, dry_run) => request('POST', '/api/import/products', { rows, dry_run }),
 
   // catalogue
   categories:      () => request('GET', '/api/categories'),
