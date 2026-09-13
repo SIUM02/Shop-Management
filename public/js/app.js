@@ -8,6 +8,7 @@ import * as stock      from './views/stock.js';
 import * as sales      from './views/sales.js';
 import * as categories from './views/categories.js';
 import * as suppliers  from './views/suppliers.js';
+import * as customers  from './views/customers.js';
 import * as reports    from './views/reports.js';
 import * as users      from './views/users.js';
 import * as settings   from './views/settings.js';
@@ -20,6 +21,7 @@ const ROUTES = {
   sales:      { title: 'বিক্রয়',            view: sales },
   categories: { title: 'ক্যাটাগরি',          view: categories },
   suppliers:  { title: 'সরবরাহকারী',        view: suppliers },
+  customers:  { title: 'ক্রেতা ও বাকি',      view: customers },
   reports:    { title: 'রিপোর্ট',           view: reports },
   users:      { title: 'ব্যবহারকারী',        view: users, roles: ['admin'] },
   settings:   { title: 'সেটিংস',            view: settings },

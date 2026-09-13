@@ -22,6 +22,7 @@ export const ready = driver.ready;
 export const getSettings = driver.getSettings;
 export const setSetting = driver.setSetting;
 export const applyDefaultSettings = driver.applyDefaultSettings;
+export const applyMigrations = driver.applyMigrations;
 export const pool = driver.pool;
 export const dbTarget = driver.dbTarget;
 

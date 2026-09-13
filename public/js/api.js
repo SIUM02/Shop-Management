@@ -66,6 +66,13 @@ export const api = {
   updateCategory:  (id, d) => request('PUT', `/api/categories/${id}`, d),
   deleteCategory:  (id) => request('DELETE', `/api/categories/${id}`),
 
+  customers:       (params) => request('GET', '/api/customers' + qs(params)),
+  customer:        (id) => request('GET', `/api/customers/${id}`),
+  createCustomer:  (d) => request('POST', '/api/customers', d),
+  updateCustomer:  (id, d) => request('PUT', `/api/customers/${id}`, d),
+  deleteCustomer:  (id) => request('DELETE', `/api/customers/${id}`),
+  payCustomer:     (id, d) => request('POST', `/api/customers/${id}/payments`, d),
+
   suppliers:      () => request('GET', '/api/suppliers'),
   supplier:       (id) => request('GET', `/api/suppliers/${id}`),
   createSupplier: (d) => request('POST', '/api/suppliers', d),

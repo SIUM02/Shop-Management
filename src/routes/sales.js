@@ -90,6 +90,7 @@ router.post(
     if (!lines.length) throw badRequest('বিক্রয়ে অন্তত একটি পণ্য যোগ করুন');
     if (lines.length > 200) throw badRequest('একটি বিক্রয়ে সর্বোচ্চ ২০০টি লাইন রাখা যাবে');
 
+    const customerId = req.body.customer_id ? num(req.body.customer_id, { field: 'ক্রেতা', min: 1 }) : null;
     const customerName = str(req.body.customer_name, { field: 'ক্রেতার নাম', max: 120 });
     const customerPhone = str(req.body.customer_phone, { field: 'ক্রেতার ফোন', max: 40 });
     const paymentMethod = str(req.body.payment_method, { field: 'পরিশোধের মাধ্যম', max: 30, fallback: 'cash' }) || 'cash';
@@ -140,12 +141,29 @@ router.post(
       const tax = money(taxable * (taxPercent / 100));
       const total = money(taxable + tax);
 
+      /*
+       * How much the customer actually handed over. Absent means the whole
+       * total, which is what happens at a counter; anything less is a debt and
+       * has to be owed by somebody, so it needs a named customer to owe it.
+       */
+      const paid = req.body.paid_amount === undefined || req.body.paid_amount === ''
+        ? total
+        : money(num(req.body.paid_amount, { field: 'পরিশোধিত টাকা', min: 0 }));
+      if (paid > total + 0.005) throw badRequest('পরিশোধিত টাকা মোটের চেয়ে বেশি হতে পারবে না');
+      if (paid < total - 0.005 && !customerId) {
+        throw badRequest('বাকি রাখতে হলে ক্রেতা নির্বাচন করুন — কে বাকি রাখছেন তা জানা দরকার');
+      }
+      if (customerId) {
+        const exists = await tx.get('SELECT id FROM customers WHERE id = ?', customerId);
+        if (!exists) throw badRequest('নির্বাচিত ক্রেতাকে পাওয়া যায়নি');
+      }
+
       const invoiceNo = await nextInvoiceNo(tx);
       const info = await tx.insert(`INSERT INTO sales
-             (invoice_no, customer_name, customer_phone, subtotal, discount, tax,
-              total, cost_total, payment_method, note, user_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, invoiceNo, customerName, customerPhone, subtotal, discount, tax,
-             total, costTotal, paymentMethod, note, req.user.id);
+             (invoice_no, customer_id, customer_name, customer_phone, subtotal, discount, tax,
+              total, cost_total, paid_amount, payment_method, note, user_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, invoiceNo, customerId, customerName, customerPhone,
+             subtotal, discount, tax, total, costTotal, paid, paymentMethod, note, req.user.id);
 
       const saleId = Number(info.lastInsertRowid);
 

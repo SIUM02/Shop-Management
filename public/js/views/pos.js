@@ -4,6 +4,10 @@ import { empty, esc, formData, int, modal, money, seesProfit, state, toast, when
 /** Cart lives at module scope so switching pages and back keeps it. */
 const cart = [];
 
+/** The account a credit sale is charged to. Null means a walk-in paying now. */
+let customer = null;
+let customerList = [];
+
 /** Payment methods are stored in English; these are what the shop reads. */
 export const PAYMENT_LABELS = {
   cash:   'নগদ',
@@ -63,6 +67,13 @@ export async function render(root, ctx) {
       searchProducts(root, ctx, code);
     }
   });
+
+  try {
+    const { items } = await api.customers();
+    customerList = items;
+  } catch {
+    customerList = [];   // the till still works without the account list
+  }
 
   await searchProducts(root, ctx, '');
   paint(root, ctx);
@@ -161,7 +172,11 @@ function paint(root, ctx) {
     customer: document.getElementById('pos-customer')?.value ?? '',
     phone: document.getElementById('pos-phone')?.value ?? '',
     payment: document.getElementById('pos-payment')?.value ?? 'cash',
+    paid: document.getElementById('pos-paid')?.value ?? '',
   };
+
+  // The picker is the source of truth for who owes; keep it across repaints.
+  customer = Number(document.getElementById('pos-customer-id')?.value || 0) || customer;
 
   const t = totals();
 
@@ -200,13 +215,27 @@ function paint(root, ctx) {
               <span>কর %</span>
               <input id="pos-tax" type="number" step="0.01" min="0" max="100" value="${esc(prev.tax)}" />
             </label>
+            <label class="field span-2">
+              <span>ক্রেতা <span class="hint">বাকি রাখতে হলে আবশ্যক</span></span>
+              <select id="pos-customer-id">
+                <option value="">— সাধারণ ক্রেতা —</option>
+                ${customerList.map((c) => `<option value="${c.id}" ${
+                  customer === c.id ? 'selected' : ''}>${esc(c.name)}${
+                  c.phone ? ` · ${esc(c.phone)}` : ''}${
+                  c.due > 0 ? ` · বাকি ${money(c.due)}` : ''}</option>`).join('')}
+              </select>
+            </label>
             <label class="field">
-              <span>ক্রেতার নাম</span>
+              <span>ক্রেতার নাম <span class="hint">রসিদে ছাপা হবে</span></span>
               <input id="pos-customer" maxlength="120" value="${esc(prev.customer)}" placeholder="সাধারণ ক্রেতা" />
             </label>
             <label class="field">
               <span>ফোন</span>
               <input id="pos-phone" maxlength="40" value="${esc(prev.phone)}" />
+            </label>
+            <label class="field span-2">
+              <span>কত টাকা পেলেন? <span class="hint">কম দিলে বাকি থাকবে</span></span>
+              <input id="pos-paid" type="number" step="0.01" min="0" value="${esc(prev.paid)}" />
             </label>
             <label class="field span-2">
               <span>পরিশোধের মাধ্যম</span>
@@ -221,6 +250,7 @@ function paint(root, ctx) {
           <div class="total-row"><span>ছাড়</span><span>−${money(t.discount)}</span></div>
           <div class="total-row"><span>কর (${t.taxPercent}%)</span><span>${money(t.tax)}</span></div>
           <div class="total-row grand"><span>সর্বমোট</span><span>${money(t.total)}</span></div>
+          <div class="total-row" id="due-row"></div>
           ${seesProfit() && t.profit !== null ? `
             <div class="pos-profit" id="pos-profit">
               <div class="profit-head">শুধু মালিকের জন্য</div>
@@ -290,6 +320,42 @@ function paint(root, ctx) {
     });
   }
 
+  /*
+   * Keep the outstanding line honest as the cashier types. Blank means the
+   * customer is paying in full, which is the common case and must not read as
+   * a debt of the whole invoice.
+   */
+  const paintDue = () => {
+    const row = card.querySelector('#due-row');
+    if (!row) return;
+    const u = totals();
+    const field = card.querySelector('#pos-paid');
+    const raw = field?.value ?? '';
+    const paid = raw === '' ? u.total : Number(raw) || 0;
+    const due = Math.round((u.total - paid) * 100) / 100;
+
+    if (due > 0.005) {
+      row.innerHTML = `<span>বাকি থাকবে</span><span class="text-danger"><strong>${money(due)}</strong></span>`;
+    } else if (due < -0.005) {
+      row.innerHTML = `<span>ফেরত দিতে হবে</span><span class="text-ok"><strong>${money(-due)}</strong></span>`;
+    } else {
+      row.innerHTML = '<span>বাকি থাকবে</span><span class="text-ok">কিছু না</span>';
+    }
+  };
+
+  card.querySelector('#pos-paid')?.addEventListener('input', paintDue);
+  card.querySelector('#pos-customer-id')?.addEventListener('change', (e) => {
+    customer = Number(e.target.value) || null;
+    // Copy the account's name onto the receipt field unless it was typed into.
+    const chosen = customerList.find((c) => c.id === customer);
+    const nameField = card.querySelector('#pos-customer');
+    if (chosen && nameField && !nameField.value.trim()) nameField.value = chosen.name;
+  });
+  for (const id of ['#pos-discount', '#pos-tax']) {
+    card.querySelector(id)?.addEventListener('input', paintDue);
+  }
+  paintDue();
+
   card.querySelector('#checkout')?.addEventListener('click', () => checkout(root, ctx));
 }
 
@@ -302,7 +368,10 @@ async function checkout(root, ctx) {
   btn.textContent = 'প্রক্রিয়াধীন…';
 
   try {
+    const paidField = document.getElementById('pos-paid');
     const sale = await api.createSale({
+      customer_id: Number(document.getElementById('pos-customer-id').value) || null,
+      paid_amount: paidField.value === '' ? undefined : Number(paidField.value),
       customer_name: document.getElementById('pos-customer').value.trim(),
       customer_phone: document.getElementById('pos-phone').value.trim(),
       payment_method: document.getElementById('pos-payment').value,
@@ -316,6 +385,7 @@ async function checkout(root, ctx) {
     });
 
     cart.length = 0;
+    customer = null;
     showReceipt(sale);
     toast(`বিক্রয় ${sale.invoice_no} সম্পন্ন হয়েছে`);
     await render(root, ctx);

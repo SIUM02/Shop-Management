@@ -397,6 +397,66 @@ export async function applyDefaultSettings() {
   }
 }
 
+/*
+ * Schema changes that must also reach a shop's existing database file, not
+ * just a freshly created one. Each step runs once; settings.schema_version
+ * records how far this database has got.
+ */
+const MIGRATIONS = [
+  // 1 — named customers, and letting a sale be settled in instalments.
+  [
+    `CREATE TABLE IF NOT EXISTS customers (
+       id         INTEGER PRIMARY KEY AUTOINCREMENT,
+       name       TEXT    NOT NULL,
+       phone      TEXT    NOT NULL DEFAULT '',
+       address    TEXT    NOT NULL DEFAULT '',
+       note       TEXT    NOT NULL DEFAULT '',
+       active     INTEGER NOT NULL DEFAULT 1,
+       created_at TEXT    NOT NULL DEFAULT (shop_utc_now())
+     )`,
+    `CREATE TABLE IF NOT EXISTS customer_payments (
+       id          INTEGER PRIMARY KEY AUTOINCREMENT,
+       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+       sale_id     INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+       amount      REAL    NOT NULL CHECK (amount > 0),
+       method      TEXT    NOT NULL DEFAULT 'cash',
+       note        TEXT    NOT NULL DEFAULT '',
+       user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+       created_at  TEXT    NOT NULL DEFAULT (shop_utc_now())
+     )`,
+    // SQLite has no ADD COLUMN IF NOT EXISTS; the version gate runs this once,
+    // and a duplicate-column error is tolerated below in case it did not.
+    `ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL`,
+    `ALTER TABLE sales ADD COLUMN paid_amount REAL NOT NULL DEFAULT 0`,
+    /*
+     * Sales recorded before this feature existed were settled in full at the
+     * counter, because nothing else could be recorded. Leaving them at the
+     * column default would invent a debt for every past customer.
+     */
+    `UPDATE sales SET paid_amount = total WHERE paid_amount = 0`,
+    `CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_payments_customer ON customer_payments(customer_id)`,
+  ],
+];
+
+export async function applyMigrations() {
+  const row = db.get("SELECT value FROM settings WHERE key = 'schema_version'", []);
+  let version = Number(row?.value || 0);
+
+  for (let i = version; i < MIGRATIONS.length; i++) {
+    for (const statement of MIGRATIONS[i]) {
+      try {
+        db.exec(statement);
+      } catch (err) {
+        if (!/already exists|duplicate column/i.test(err.message)) throw err;
+      }
+    }
+    version = i + 1;
+  }
+
+  await setSetting('schema_version', String(version));
+}
+
 let readyPromise = null;
 
 export function ready() {
@@ -405,6 +465,7 @@ export function ready() {
       db.exec(SCHEMA);
       db.exec(TRIGGERS);
       await applyDefaultSettings();
+      await applyMigrations();
     })().catch((err) => {
       readyPromise = null;
       throw err;
