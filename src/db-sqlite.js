@@ -12,9 +12,9 @@
  * The whole shop lives in a single file, which is what makes an offline
  * install possible: nothing to configure, and a backup is a file copy.
  */
-import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,7 +30,61 @@ function resolveDbPath() {
 export const dbPath = resolveDbPath();
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-export const db = new DatabaseSync(dbPath);
+/*
+ * Two SQLite engines, one behaviour.
+ *
+ * node:sqlite is built into Node 22.5+ and is used wherever it exists. It does
+ * not exist on the runtime that can still reach Windows 7 — that machine tops
+ * out at Electron 22, whose Node is 16 — so the fallback is SQLite compiled to
+ * WebAssembly. The WASM build carries no compiled binary, which is what makes
+ * a 32-bit Windows build possible at all: there is no per-architecture
+ * artifact to match.
+ *
+ * The two libraries differ only in how a statement is called, so the
+ * difference is absorbed here and nothing below this point knows which is
+ * running.
+ */
+const require = createRequire(import.meta.url);
+
+function openDatabase() {
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const handle = new DatabaseSync(dbPath);
+    return {
+      engine: 'node:sqlite',
+      exec: (sql) => handle.exec(sql),
+      all: (sql, params) => handle.prepare(sql).all(...params),
+      get: (sql, params) => handle.prepare(sql).get(...params),
+      run: (sql, params) => {
+        const r = handle.prepare(sql).run(...params);
+        return { changes: Number(r.changes), lastInsertRowid: Number(r.lastInsertRowid) };
+      },
+      fn: (name, impl) => handle.function(name, impl),
+      close: () => handle.close(),
+    };
+  } catch (err) {
+    if (err?.code !== 'ERR_UNKNOWN_BUILTIN_MODULE' && !/Cannot find module/.test(err?.message || '')) {
+      throw err;
+    }
+    const { Database } = require('node-sqlite3-wasm');
+    const handle = new Database(dbPath);
+    return {
+      engine: 'node-sqlite3-wasm',
+      exec: (sql) => handle.exec(sql),
+      all: (sql, params) => handle.all(sql, params),
+      get: (sql, params) => handle.get(sql, params),
+      run: (sql, params) => {
+        const r = handle.run(sql, params);
+        return { changes: Number(r.changes), lastInsertRowid: Number(r.lastInsertRowid) };
+      },
+      fn: (name, impl) => handle.function(name, impl),
+      close: () => handle.close(),
+    };
+  }
+}
+
+export const db = openDatabase();
+export const engine = db.engine;
 
 // WAL keeps reads responsive while a sale is being written; foreign keys are
 // off by default in SQLite and the schema leans on them. busy_timeout matters
@@ -72,9 +126,9 @@ function shopDate(ts) {
   return dateFormatter.format(d); // en-CA formats as YYYY-MM-DD
 }
 
-db.function('shop_utc_now', () => utcNow());
-db.function('shop_date', (ts) => shopDate(ts));
-db.function('shop_today', () => dateFormatter.format(new Date()));
+db.fn('shop_utc_now', () => utcNow());
+db.fn('shop_date', (ts) => shopDate(ts));
+db.fn('shop_today', () => dateFormatter.format(new Date()));
 
 /*
  * Postgres takes this advisory lock so several serverless instances cannot
@@ -86,7 +140,7 @@ db.function('shop_today', () => dateFormatter.format(new Date()));
  * declared arity as the SQL arity, so a zero-argument version is rejected at
  * call time with "wrong number of arguments".
  */
-db.function('pg_advisory_xact_lock', (_key) => 0);
+db.fn('pg_advisory_xact_lock', (_key) => 0);
 
 /*
  * to_char over a date. The shop_* helpers above hand back 'YYYY-MM-DD' text,
@@ -98,7 +152,7 @@ db.function('pg_advisory_xact_lock', (_key) => 0);
  */
 const TO_CHAR_WIDTHS = { 'YYYY': 4, 'YYYY-MM': 7, 'YYYY-MM-DD': 10 };
 
-db.function('to_char', (value, fmt) => {
+db.fn('to_char', (value, fmt) => {
   if (value === null || value === undefined) return null;
   const width = TO_CHAR_WIDTHS[String(fmt)];
   if (!width) throw new Error(`to_char: unsupported format '${fmt}'`);
@@ -144,29 +198,24 @@ function normalise(params) {
 /* ------------------------------------------------------------ query surface */
 
 function makeSurface() {
-  const prepare = (sql) => db.prepare(translate(sql));
-
   return {
     async all(sql, ...params) {
-      return prepare(sql).all(...normalise(params));
+      return db.all(translate(sql), normalise(params));
     },
 
     async get(sql, ...params) {
-      return prepare(sql).get(...normalise(params));
+      return db.get(translate(sql), normalise(params));
     },
 
     async run(sql, ...params) {
-      const res = prepare(sql).run(...normalise(params));
-      return { changes: Number(res.changes) };
+      const res = db.run(translate(sql), normalise(params));
+      return { changes: res.changes };
     },
 
     /** INSERT that reports the new row's id, matching the Postgres surface. */
     async insert(sql, ...params) {
-      const res = prepare(sql).run(...normalise(params));
-      return {
-        lastInsertRowid: Number(res.lastInsertRowid),
-        changes: Number(res.changes),
-      };
+      const res = db.run(translate(sql), normalise(params));
+      return { lastInsertRowid: res.lastInsertRowid, changes: res.changes };
     },
 
     async exec(sql) {
@@ -339,8 +388,9 @@ const DEFAULT_SETTINGS = {
 };
 
 export async function applyDefaultSettings() {
-  const stmt = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
-  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) stmt.run(key, value);
+  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    db.run('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', [key, value]);
+  }
 }
 
 let readyPromise = null;
@@ -360,15 +410,16 @@ export function ready() {
 }
 
 export async function getSettings() {
-  const rows = db.prepare('SELECT key, value FROM settings').all();
+  const rows = db.all('SELECT key, value FROM settings', []);
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
 export async function setSetting(key, value) {
-  db.prepare(
+  db.run(
     'INSERT INTO settings (key, value) VALUES (?, ?) ' +
-      'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-  ).run(key, String(value));
+      'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    [key, String(value)]
+  );
 }
 
 /** Wipes every table and restarts ids, for `npm run reset`. */

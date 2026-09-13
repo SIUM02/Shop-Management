@@ -20,6 +20,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "node-sqlite3-wasm": "^0.8.60",
     "pg": "^8.23.0"
   }
 }
