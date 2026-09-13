@@ -331,7 +331,7 @@ END;
 `;
 
 const DEFAULT_SETTINGS = {
-  shop_name: 'আমার দোকান',
+  shop_name: 'জনতা ইলেকট্রিক এন্ড ইলেকট্রনিক্স',
   currency_symbol: '৳',
   number_locale: 'en-IN',
   tax_percent: '0',

@@ -328,7 +328,7 @@ FOR EACH ROW EXECUTE FUNCTION trg_products_touch();
 `;
 
 const DEFAULT_SETTINGS = {
-  shop_name: 'আমার দোকান',
+  shop_name: 'জনতা ইলেকট্রিক এন্ড ইলেকট্রনিক্স',
   currency_symbol: '৳',
   // en-IN gives South-Asian lakh/crore grouping with Latin digits (1,23,456.78),
   // which is how amounts are written in Bangladesh. See NUMBER_LOCALES.

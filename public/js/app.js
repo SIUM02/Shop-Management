@@ -132,7 +132,7 @@ async function showApp() {
 }
 
 export function applySettings() {
-  const name = state.settings.shop_name || 'দোকান ইনভেন্টরি';
+  const name = state.settings.shop_name || 'জনতা ইলেকট্রিক এন্ড ইলেকট্রনিক্স';
   document.getElementById('brand-name').textContent = name;
   document.title = `${name} · ইনভেন্টরি`;
 }
